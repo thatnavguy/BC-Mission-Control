@@ -1,6 +1,6 @@
 # BC Mission Control
 
-![Mission Control](web\public\MissionControl.jpg)
+![Mission Control](web/public/MissionControl.jpg)
 
 A fast, local web UI for managing Business Central — cloud (SaaS) tenants and
 local Docker containers from one place. The Node backend talks to the Business
