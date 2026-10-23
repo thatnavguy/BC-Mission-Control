@@ -31,7 +31,7 @@ export async function getContainerCapabilities(): Promise<{
     helperAvailable = pwshAvailable && await probe('pwsh', ['-NoProfile', '-Command',
       'if (Get-Module -ListAvailable BcContainerHelper) { exit 0 } else { exit 1 }'], 20000);
   }
-  if (dockerAvailable === null) dockerAvailable = await probe('docker', ['version', '--format', '{{.Server.Version}}']);
+  if (!dockerAvailable) dockerAvailable = await probe('docker', ['version', '--format', '{{.Server.Version}}']);
   return { pwsh: pwshAvailable, bcContainerHelper: helperAvailable, docker: dockerAvailable };
 }
 
