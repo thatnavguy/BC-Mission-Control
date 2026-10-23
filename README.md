@@ -43,8 +43,7 @@ Central Admin Center and Automation APIs directly; no scripts to run by hand.
 ## Architecture
 
 Product and design context live in `PRODUCT.md` (what the product is and who
-it serves) and `DESIGN.md` (the visual system: tokens, surfaces, rules), both
-maintained with the Impeccable workflow in `.github/skills/impeccable/`.
+it serves) and `DESIGN.md` (the visual system: tokens, surfaces, rules).
 
 ```
 server/   Express + TypeScript backend (port 4321)
