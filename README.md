@@ -6,6 +6,9 @@ A fast, local web UI for managing Business Central — cloud (SaaS) tenants and
 local Docker containers from one place. The Node backend talks to the Business
 Central Admin Center and Automation APIs directly; no scripts to run by hand.
 
+**New here? Read the [User Guide](docs/UserGuide.md)** — step-by-step
+instructions with screenshots for every page.
+
 ## Features
 
 - **Setup page** — one device code sign-in covers everything (no client secret
