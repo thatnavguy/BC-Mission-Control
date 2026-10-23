@@ -88,10 +88,3 @@ npm run dev:web      # terminal 2 — UI on 5173 (proxies /api to 4321)
 2. Add a tenant (name + tenant ID), click **Load environments**, tick the
    environments you work with. Soft-deleted environments are hidden.
 3. Go to **PTE Deployment**, drop your `.app` files, pick targets, deploy.
-
-## Reference
-
-The `Reference/` folder contains the original PowerShell-based project this UI
-replaces. It can be removed at any time — nothing depends on it. Cloud actions
-call the BC APIs directly; container actions spawn local `pwsh` with
-BcContainerHelper (containers are inherently local Docker workloads).
