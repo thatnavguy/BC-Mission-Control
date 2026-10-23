@@ -1,0 +1,106 @@
+export interface TenantConfig {
+  name: string;
+  id: string;
+  environments: Record<string, boolean>;
+}
+
+export interface ContainerConfig {
+  name: string;
+  containerName: string;
+  enabled: boolean;
+}
+
+export interface Settings {
+  clientId: string;
+  tokenValidityDays: number;
+  tenants: TenantConfig[];
+  containers: ContainerConfig[];
+  containerDefaults: {
+    licenseFile: string;
+    dns: string;
+    country: string;
+    memoryLimit: string;
+  };
+}
+
+export interface AppManifest {
+  id: string;
+  name: string;
+  publisher: string;
+  version: string;
+  dependencies: { id: string; name: string }[];
+}
+
+export interface StagedApp {
+  fileName: string;
+  size: number;
+  uploadedAt: string;
+  manifest?: AppManifest;
+  manifestError?: string;
+}
+
+export type TargetStatus = 'pending' | 'running' | 'succeeded' | 'skipped' | 'scheduled' | 'failed';
+
+export interface DeployTargetResult {
+  tenantId: string;
+  tenantName: string;
+  environment: string;
+  appFile: string;
+  status: TargetStatus;
+  message: string;
+  operationId?: string;
+  updatedAt: string;
+}
+
+export interface DeployRun {
+  id: string;
+  kind: 'cloud' | 'container' | 'container-create';
+  startedAt: string;
+  finishedAt?: string;
+  status: 'running' | 'completed' | 'completed-with-errors' | 'failed';
+  schedule: 'Immediate' | 'UpdateWindow';
+  schemaSync: 'Add' | 'Force';
+  acceptIsvEula: boolean;
+  results: DeployTargetResult[];
+  log: string[];
+}
+
+export interface EnvironmentInfo {
+  name: string;
+  type?: string;
+  status?: string;
+  version?: string;
+}
+
+export interface AuthStatus {
+  signedIn: boolean;
+  savedAt?: string;
+  ageDays?: number;
+  expired?: boolean;
+}
+
+export interface DeviceCodeInfo {
+  userCode: string;
+  verificationUri: string;
+  message: string;
+  expiresIn: number;
+}
+
+export interface DockerContainer {
+  name: string;
+  image: string;
+  status: string;
+  running: boolean;
+}
+
+export interface ContainerCapabilities {
+  pwsh: boolean;
+  bcContainerHelper: boolean;
+  docker: boolean;
+}
+
+export interface ContainersResponse {
+  configured: ContainerConfig[];
+  running: DockerContainer[];
+  capabilities: ContainerCapabilities;
+}
