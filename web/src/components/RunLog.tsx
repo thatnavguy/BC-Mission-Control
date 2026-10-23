@@ -3,13 +3,14 @@ import { makeStyles, tokens } from '@fluentui/react-components';
 
 const useStyles = makeStyles({
   log: {
-    fontFamily: 'monospace',
+    fontFamily: tokens.fontFamilyMonospace,
     fontSize: '12px',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
-    backgroundColor: tokens.colorNeutralBackground3,
+    backgroundColor: '#f7f6f4',
+    border: '1px solid #edebe8',
     padding: '12px',
-    borderRadius: tokens.borderRadiusMedium,
+    borderRadius: '8px',
     maxHeight: '360px',
     overflowY: 'auto',
     marginTop: '12px'

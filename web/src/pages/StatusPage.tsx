@@ -6,12 +6,13 @@ import {
 } from '@fluentui/react-components';
 import { ArrowSync24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
+import EmptyState from '../components/EmptyState';
+import { useSharedStyles } from '../theme';
 import { Settings } from '../types';
 import TargetPicker, { TargetSelection } from '../components/TargetPicker';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1200px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }
 });
 
@@ -37,6 +38,7 @@ function statusBadge(status?: string) {
 
 export default function StatusPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [target, setTarget] = useState<TargetSelection | null>(null);
   const [rows, setRows] = useState<StatusRow[]>([]);
@@ -79,9 +81,12 @@ export default function StatusPage() {
   return (
     <div className={styles.stack}>
       <Title2>Extension Deployment Status</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Latest extension operations per environment, including error messages.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <div className={styles.row}>
           <TargetPicker settings={settings} value={target} onChange={setTarget} />
           <Button
@@ -94,7 +99,7 @@ export default function StatusPage() {
         </div>
       </Card>
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         {loading ? (
           <Spinner label="Loading status..." />
         ) : (
@@ -130,7 +135,10 @@ export default function StatusPage() {
           </Table>
         )}
         {!loading && rows.length === 0 && (
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>No deployment operations found.</Text>
+          <EmptyState
+            title="No deployment operations found"
+            hint="Pick an environment and hit Refresh — operations only load when you ask."
+          />
         )}
       </Card>
     </div>

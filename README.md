@@ -1,5 +1,7 @@
 # BC Mission Control
 
+![Mission Control](web\public\MissionControl.jpg)
+
 A fast, local web UI for managing Business Central — cloud (SaaS) tenants and
 local Docker containers from one place. The Node backend talks to the Business
 Central Admin Center and Automation APIs directly; no scripts to run by hand.
@@ -39,6 +41,10 @@ Central Admin Center and Automation APIs directly; no scripts to run by hand.
   toolkits) with streamed creation output.
 
 ## Architecture
+
+Product and design context live in `PRODUCT.md` (what the product is and who
+it serves) and `DESIGN.md` (the visual system: tokens, surfaces, rules), both
+maintained with the Impeccable workflow in `.github/skills/impeccable/`.
 
 ```
 server/   Express + TypeScript backend (port 4321)

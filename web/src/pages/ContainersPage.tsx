@@ -8,12 +8,13 @@ import {
   Add24Regular, ArrowSync24Regular, Delete24Regular, Play24Regular
 } from '@fluentui/react-icons';
 import { api, subscribeRuns } from '../api';
+import EmptyState from '../components/EmptyState';
+import { useSharedStyles } from '../theme';
 import { ContainersResponse, DeployRun, Settings } from '../types';
 import RunLog from '../components/RunLog';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1100px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   grid: {
     display: 'grid',
@@ -25,6 +26,7 @@ const useStyles = makeStyles({
 
 export default function ContainersPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [data, setData] = useState<ContainersResponse | null>(null);
   const [error, setError] = useState('');
@@ -131,6 +133,9 @@ export default function ContainersPage() {
   return (
     <div className={styles.stack}>
       <Title2>Containers</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Map friendly names to Docker containers, save defaults once, create new ones here.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {notice && <MessageBar intent="success"><MessageBarBody>{notice}</MessageBarBody></MessageBar>}
       {!data.capabilities.docker && (
@@ -148,7 +153,7 @@ export default function ContainersPage() {
         </MessageBar>
       )}
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <div className={styles.row} style={{ justifyContent: 'space-between' }}>
           <Title3>Configured containers</Title3>
           <div className={styles.row}>
@@ -162,9 +167,10 @@ export default function ContainersPage() {
           </div>
         </div>
         {settings.containers.length === 0 && (
-          <Text block size={200} style={{ marginTop: '12px', color: tokens.colorNeutralForeground3 }}>
-            No containers configured. Add one to map a friendly name to a Docker container.
-          </Text>
+          <EmptyState
+            title="No containers configured"
+            hint="Add one to map a friendly name to a Docker container on this machine."
+          />
         )}
         {settings.containers.length > 0 && (
           <Table size="small" style={{ marginTop: '12px' }}>
@@ -236,7 +242,7 @@ export default function ContainersPage() {
         )}
       </Card>
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <Title3>Container defaults</Title3>
         <Text block size={200} style={{ margin: '4px 0 12px', color: tokens.colorNeutralForeground3 }}>
           Saved once and pre-filled in the create form below.
@@ -289,7 +295,7 @@ export default function ContainersPage() {
         </div>
       </Card>
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <Title3>Create new container</Title3>
         <div className={styles.grid}>
           <Field label="Container name" required>

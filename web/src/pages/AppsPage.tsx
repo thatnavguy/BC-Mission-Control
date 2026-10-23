@@ -8,12 +8,13 @@ import {
   ArrowDownload24Regular, ArrowSync24Regular, Delete24Regular, Search24Regular
 } from '@fluentui/react-icons';
 import { api } from '../api';
+import EmptyState from '../components/EmptyState';
+import { useSharedStyles } from '../theme';
 import { AuthStatus, Settings } from '../types';
 import TargetPicker, { TargetSelection } from '../components/TargetPicker';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1200px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }
 });
 
@@ -50,6 +51,7 @@ function scopeBadge(scope: string) {
 
 export default function AppsPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [target, setTarget] = useState<TargetSelection | null>(null);
@@ -152,10 +154,13 @@ export default function AppsPage() {
   return (
     <div className={styles.stack}>
       <Title2>Apps</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Extensions in one environment — reinstall PTEs, unpublish old versions, apply AppSource updates.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {notice && <MessageBar intent="success"><MessageBarBody>{notice}</MessageBarBody></MessageBar>}
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <div className={styles.row}>
           <TargetPicker settings={settings} value={target} onChange={setTarget} />
           <Button
@@ -176,7 +181,7 @@ export default function AppsPage() {
       </Card>
 
       {updatable.length > 0 && (
-        <Card className={styles.card}>
+        <Card className={shared.card}>
           <Title2 as="h3" style={{ fontSize: tokens.fontSizeBase500 }}>AppSource updates available</Title2>
           <Table size="small" style={{ marginTop: '8px' }}>
             <TableHeader>
@@ -213,7 +218,7 @@ export default function AppsPage() {
         </Card>
       )}
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         {loading ? (
           <Spinner label="Loading extensions..." />
         ) : (
@@ -270,7 +275,10 @@ export default function AppsPage() {
           </Table>
         )}
         {!loading && filtered.length === 0 && (
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>No extensions found.</Text>
+          <EmptyState
+            title="No extensions found"
+            hint="Try a different filter, or hit Refresh to load this environment."
+          />
         )}
       </Card>
     </div>

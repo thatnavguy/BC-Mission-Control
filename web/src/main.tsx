@@ -1,11 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { FluentProvider, webLightTheme, webDarkTheme } from '@fluentui/react-components';
+import { FluentProvider } from '@fluentui/react-components';
 import App from './App';
+import { theme } from './theme';
+import './global.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <FluentProvider theme={window.matchMedia('(prefers-color-scheme: dark)').matches ? webDarkTheme : webLightTheme}>
+    <FluentProvider theme={theme}>
       <App />
     </FluentProvider>
   </React.StrictMode>

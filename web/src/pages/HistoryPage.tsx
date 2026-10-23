@@ -5,15 +5,16 @@ import {
   TableCell, TableHeader, TableHeaderCell, TableRow, Text, Title2, tokens
 } from '@fluentui/react-components';
 import { api, subscribeRuns } from '../api';
+import EmptyState from '../components/EmptyState';
+import { useSharedStyles } from '../theme';
 import { DeployRun } from '../types';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '1100px' },
-  card: { padding: '20px' },
   log: {
-    fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre-wrap',
-    backgroundColor: tokens.colorNeutralBackground3, padding: '12px',
-    borderRadius: tokens.borderRadiusMedium, maxHeight: '300px', overflowY: 'auto'
+    fontFamily: tokens.fontFamilyMonospace, fontSize: '12px', whiteSpace: 'pre-wrap',
+    backgroundColor: '#f7f6f4', border: '1px solid #edebe8', padding: '12px',
+    borderRadius: '8px', maxHeight: '300px', overflowY: 'auto', marginTop: '12px'
   }
 });
 
@@ -34,6 +35,7 @@ function kindBadge(kind: DeployRun['kind']) {
 
 export default function HistoryPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [runs, setRuns] = useState<DeployRun[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -55,9 +57,15 @@ export default function HistoryPage() {
   return (
     <div className={styles.stack}>
       <Title2>Deployment History</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Every run — cloud deploy, container deploy, container create — with results and full logs.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {runs.length === 0 && (
-        <Text style={{ color: tokens.colorNeutralForeground3 }}>No deployments yet.</Text>
+        <EmptyState
+          title="No deployments yet"
+          hint="Runs you start from PTE Deployment — cloud or container — are filed here with their full logs."
+        />
       )}
       <Accordion collapsible>
         {runs.map(run => (
@@ -73,7 +81,7 @@ export default function HistoryPage() {
               </div>
             </AccordionHeader>
             <AccordionPanel>
-              <Card className={styles.card}>
+              <Card className={shared.card}>
                 <Table size="small">
                   <TableHeader>
                     <TableRow>

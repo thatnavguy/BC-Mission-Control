@@ -9,17 +9,21 @@ import {
   ArrowUpload24Regular, Delete24Regular, Document24Regular, Play24Regular
 } from '@fluentui/react-icons';
 import { api, subscribeRuns } from '../api';
+import { useSharedStyles } from '../theme';
 import { AuthStatus, DeployRun, Settings, StagedApp, TargetStatus } from '../types';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1100px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   dropZone: {
-    border: `2px dashed ${tokens.colorNeutralStroke1}`,
-    borderRadius: tokens.borderRadiusLarge,
-    padding: '28px',
-    textAlign: 'center',
+    border: '1.5px dashed #d6d3cf',
+    borderRadius: '10px',
+    backgroundColor: '#fafafa',
+    padding: '32px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
     cursor: 'pointer',
     color: tokens.colorNeutralForeground3,
     marginTop: '12px'
@@ -53,6 +57,7 @@ function formatBytes(n: number): string {
 
 export default function DeployPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [apps, setApps] = useState<StagedApp[]>([]);
@@ -146,6 +151,9 @@ export default function DeployPage() {
   return (
     <div className={styles.stack}>
       <Title2>PTE Deployment</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Stage .app files, pick target environments, deploy — with live per-target progress.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {auth && (!auth.signedIn || auth.expired) && (
         <MessageBar intent="warning">
@@ -153,8 +161,8 @@ export default function DeployPage() {
         </MessageBar>
       )}
 
-      <Card className={styles.card}>
-        <Title3>1. Upload apps</Title3>
+      <Card className={shared.card}>
+        <Title3><span className={shared.stepNum}>1</span>Upload apps</Title3>
         <div
           className={`${styles.dropZone} ${dragOver ? styles.dropZoneActive : ''}`}
           onClick={() => fileInput.current?.click()}
@@ -231,8 +239,8 @@ export default function DeployPage() {
         )}
       </Card>
 
-      <Card className={styles.card}>
-        <Title3>2. Select targets</Title3>
+      <Card className={shared.card}>
+        <Title3><span className={shared.stepNum}>2</span>Select targets</Title3>
         {enabledTargets.length === 0 && (
           <Text block size={200} style={{ marginTop: '8px', color: tokens.colorNeutralForeground3 }}>
             No environments enabled. Configure tenants and environments on the Setup page.
@@ -278,8 +286,8 @@ export default function DeployPage() {
         })}
       </Card>
 
-      <Card className={styles.card}>
-        <Title3>3. Options &amp; deploy</Title3>
+      <Card className={shared.card}>
+        <Title3><span className={shared.stepNum}>3</span>Options &amp; deploy</Title3>
         <div className={styles.row} style={{ marginTop: '12px' }}>
           <Field label="Schedule">
             <Dropdown
@@ -325,7 +333,7 @@ export default function DeployPage() {
       </Card>
 
       {activeRun && (
-        <Card className={styles.card}>
+        <Card className={shared.card}>
           <div className={styles.row} style={{ justifyContent: 'space-between' }}>
             <Title3>
               Run {activeRun.status === 'running' ? 'in progress' : 'finished'}

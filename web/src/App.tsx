@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
-  makeStyles, Tab, TabList, Title3, tokens
+  makeStyles, Tab, TabList, tokens
 } from '@fluentui/react-components';
 import {
   ArrowUpload24Regular, Settings24Regular, History24Regular,
   AppsList24Regular, Grid24Regular, PlugConnected24Regular, Pulse24Regular,
   Cube24Regular, Rocket24Regular
 } from '@fluentui/react-icons';
+import { fox } from './theme';
 import DeployPage from './pages/DeployPage';
 import SetupPage from './pages/SetupPage';
 import HistoryPage from './pages/HistoryPage';
@@ -18,28 +19,62 @@ import ContainersPage from './pages/ContainersPage';
 import ContainerDeployPage from './pages/ContainerDeployPage';
 
 const useStyles = makeStyles({
-  shell: { display: 'flex', height: '100vh', overflow: 'hidden' },
+  shell: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ffffff' },
   nav: {
-    width: '230px',
+    width: '240px',
     flexShrink: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
-    padding: '16px 8px',
+    padding: '16px 10px',
     borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
     backgroundColor: tokens.colorNeutralBackground2,
-    overflowY: 'auto'
+    overflowY: 'auto',
+    '@media (max-width: 720px)': {
+      width: '60px',
+      padding: '16px 6px',
+      '& .fui-Tab__content': { display: 'none' }
+    }
   },
-  brand: { padding: '4px 12px 16px', fontWeight: 600 },
+  brand: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '4px 10px 16px',
+    '@media (max-width: 720px)': {
+      justifyContent: 'center',
+      padding: '4px 0 14px'
+    }
+  },
+  mark: {
+    width: '44px',
+    height: '44px',
+    objectFit: 'cover',
+    borderRadius: '10px',
+    border: `1px solid ${fox.orangeBorder}`,
+    backgroundColor: fox.orangeSoft,
+    flexShrink: 0
+  },
+  wordmark: { fontWeight: 700, fontSize: '15px', lineHeight: '20px', color: '#1b1a19' },
+  tagline: { fontSize: '11px', lineHeight: '16px', color: tokens.colorNeutralForeground3 },
+  brandText: {
+    '@media (max-width: 720px)': { display: 'none' }
+  },
   section: {
-    padding: '12px 12px 4px',
+    padding: '14px 12px 4px',
     fontSize: tokens.fontSizeBase100,
     fontWeight: 600,
     textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-    color: tokens.colorNeutralForeground3
+    letterSpacing: '0.8px',
+    color: tokens.colorNeutralForeground3,
+    '@media (max-width: 720px)': { display: 'none' }
   },
-  content: { flex: 1, overflowY: 'auto', padding: '24px 32px' }
+  content: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '28px 36px',
+    '@media (max-width: 720px)': { padding: '20px 16px' }
+  }
 });
 
 type PageKey = 'deploy' | 'apps' | 'compare' | 'status' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
@@ -67,10 +102,15 @@ export default function App() {
     <div className={styles.shell}>
       <nav className={styles.nav}>
         <div className={styles.brand}>
-          <Title3>BC Mission Control</Title3>
+          <img src="/mascot-mark.png" alt="" className={styles.mark} />
+          <div className={styles.brandText}>
+            <div className={styles.wordmark}>BC Mission Control</div>
+            <div className={styles.tagline}>Cloud &amp; containers, one console</div>
+          </div>
         </div>
         <TabList
           vertical
+          appearance="subtle"
           selectedValue={page}
           onTabSelect={(_e, d) => setPage(d.value as PageKey)}
           size="large"
@@ -89,16 +129,18 @@ export default function App() {
           <Tab value="setup" icon={<Settings24Regular />}>Setup</Tab>
         </TabList>
       </nav>
-      <main className={styles.content}>
-        {page === 'deploy' && <DeployPage />}
-        {page === 'apps' && <AppsPage />}
-        {page === 'compare' && <ComparePage />}
-        {page === 'status' && <StatusPage />}
-        {page === 'api' && <ApiExplorerPage />}
-        {page === 'cdeploy' && <ContainerDeployPage />}
-        {page === 'containers' && <ContainersPage />}
-        {page === 'history' && <HistoryPage />}
-        {page === 'setup' && <SetupPage />}
+      <main className={styles.content} key={page}>
+        <div className="page-enter">
+          {page === 'deploy' && <DeployPage />}
+          {page === 'apps' && <AppsPage />}
+          {page === 'compare' && <ComparePage />}
+          {page === 'status' && <StatusPage />}
+          {page === 'api' && <ApiExplorerPage />}
+          {page === 'cdeploy' && <ContainerDeployPage />}
+          {page === 'containers' && <ContainersPage />}
+          {page === 'history' && <HistoryPage />}
+          {page === 'setup' && <SetupPage />}
+        </div>
       </main>
     </div>
   );

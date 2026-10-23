@@ -7,16 +7,44 @@ import {
 } from '@fluentui/react-components';
 import { Add24Regular, ArrowSync24Regular, Delete24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
+import { fox, useSharedStyles } from '../theme';
 import { AuthStatus, DeviceCodeInfo, EnvironmentInfo, Settings, TenantConfig } from '../types';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '960px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' },
+  hero: {
+    display: 'flex',
+    gap: '24px',
+    alignItems: 'center',
+    background: `linear-gradient(105deg, ${fox.orangeSoft} 0%, #ffffff 55%)`,
+    borderBottom: `1px solid ${fox.orangeBorder}`,
+    padding: '20px',
+    margin: '-20px -20px 16px',
+    borderRadius: '10px 10px 0 0'
+  },
+  heroImg: {
+    width: '168px',
+    height: '106px',
+    objectFit: 'cover',
+    objectPosition: '62% 40%',
+    borderRadius: '10px',
+    border: `1px solid ${fox.orangeBorder}`,
+    backgroundColor: '#ffffff',
+    flexShrink: 0,
+    '@media (max-width: 720px)': { display: 'none' }
+  },
   codeBox: {
-    fontFamily: 'monospace', fontSize: '28px', letterSpacing: '4px',
-    padding: '16px', textAlign: 'center', backgroundColor: tokens.colorNeutralBackground3,
-    borderRadius: tokens.borderRadiusMedium, margin: '12px 0'
+    fontFamily: tokens.fontFamilyMonospace, fontSize: '28px', letterSpacing: '4px',
+    padding: '16px', textAlign: 'center', backgroundColor: '#f7f6f4',
+    border: '1px solid #edebe8',
+    borderRadius: '8px', margin: '12px 0'
+  },
+  tenantCard: {
+    marginTop: '16px',
+    backgroundColor: '#fafafa',
+    border: '1px solid #edebe8',
+    boxShadow: 'none'
   }
 });
 
@@ -24,6 +52,7 @@ const emptyTenant = (): TenantConfig => ({ name: '', id: '', environments: {} })
 
 export default function SetupPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [error, setError] = useState('');
@@ -116,17 +145,27 @@ export default function SetupPage() {
   return (
     <div className={styles.stack}>
       <Title2>Setup</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        One sign-in covers everything. Add tenants, then tick the environments you work with.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {notice && <MessageBar intent="success"><MessageBarBody>{notice}</MessageBarBody></MessageBar>}
 
-      <Card className={styles.card}>
-        <Title3>Authentication</Title3>
-        <Text block size={200} style={{ margin: '8px 0 16px', color: tokens.colorNeutralForeground3 }}>
-          One device code sign-in covers everything — deployment, app management, compare, status
-          and the API Explorer. No client secret is needed anywhere. Leave Client ID blank to use
-          the built-in shared Microsoft registration, or enter your own multi-tenant Entra ID app
-          registration. The refresh token is stored locally on this machine and reused across all
-          your tenants until it exceeds the validity window.
+      <Card className={shared.card}>
+        <div className={styles.hero}>
+          <div style={{ flex: 1 }}>
+            <Title3>Authentication</Title3>
+            <Text block size={200} style={{ marginTop: '6px', color: '#6b6a68' }}>
+              One device code sign-in covers deployment, app management, compare, status
+              and the API Explorer — no client secret anywhere.
+            </Text>
+          </div>
+          <img src="/mascot.png" alt="The BC Mission Control fox at a data console" className={styles.heroImg} />
+        </div>
+        <Text block size={200} style={{ margin: '0 0 16px', color: '#6b6a68' }}>
+          Leave Client ID blank to use the built-in shared Microsoft registration, or enter
+          your own multi-tenant Entra ID app registration. The refresh token is stored locally
+          on this machine and reused across all your tenants until it exceeds the validity window.
         </Text>
         <div className={styles.row}>
           <Field label="Client ID (optional)" style={{ minWidth: '340px', flexGrow: 1 }}>
@@ -168,7 +207,7 @@ export default function SetupPage() {
         </div>
       </Card>
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <div className={styles.row} style={{ justifyContent: 'space-between' }}>
           <Title3>Tenants &amp; Environments</Title3>
           <Button icon={<Add24Regular />} onClick={() => save({ ...settings, tenants: [...settings.tenants, emptyTenant()] })}>
@@ -181,7 +220,7 @@ export default function SetupPage() {
           </Text>
         )}
         {settings.tenants.map((tenant, idx) => (
-          <Card key={idx} style={{ marginTop: '16px', backgroundColor: tokens.colorNeutralBackground2 }}>
+          <Card key={idx} className={styles.tenantCard}>
             <div className={styles.row}>
               <Field label="Tenant name">
                 <Input

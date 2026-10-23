@@ -5,17 +5,18 @@ import {
 } from '@fluentui/react-components';
 import { Play24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
+import { useSharedStyles } from '../theme';
 import { Settings } from '../types';
 import TargetPicker, { TargetSelection } from '../components/TargetPicker';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1200px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   response: {
-    fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'pre-wrap',
-    wordBreak: 'break-all', backgroundColor: tokens.colorNeutralBackground3,
-    padding: '16px', borderRadius: tokens.borderRadiusMedium,
+    fontFamily: tokens.fontFamilyMonospace, fontSize: '12px', whiteSpace: 'pre-wrap',
+    wordBreak: 'break-all', backgroundColor: '#f7f6f4',
+    border: '1px solid #edebe8',
+    padding: '16px', borderRadius: '8px',
     maxHeight: '520px', overflowY: 'auto', marginTop: '12px'
   }
 });
@@ -29,6 +30,7 @@ interface CallResult {
 
 export default function ApiExplorerPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [target, setTarget] = useState<TargetSelection | null>(null);
   const [method, setMethod] = useState('GET');
@@ -91,9 +93,12 @@ export default function ApiExplorerPage() {
   return (
     <div className={styles.stack}>
       <Title2>API Explorer</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Call any BC API endpoint as your signed-in user — standard v2.0, custom APIs, automation API.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
 
-      <Card className={styles.card}>
+      <Card className={shared.card}>
         <div className={styles.row}>
           <TargetPicker settings={settings} value={target} onChange={setTarget} />
           <Field label="Method">
@@ -149,7 +154,7 @@ export default function ApiExplorerPage() {
       </Card>
 
       {result && (
-        <Card className={styles.card}>
+        <Card className={shared.card}>
           <div className={styles.row}>
             <Badge
               appearance="filled"

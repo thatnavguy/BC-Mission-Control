@@ -7,17 +7,21 @@ import {
 } from '@fluentui/react-components';
 import { ArrowUpload24Regular, Document24Regular, Play24Regular } from '@fluentui/react-icons';
 import { api, subscribeRuns } from '../api';
+import { useSharedStyles } from '../theme';
 import { ContainerCapabilities, DeployRun, Settings, StagedApp, TargetStatus } from '../types';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1100px' },
-  card: { padding: '20px' },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   dropZone: {
-    border: `2px dashed ${tokens.colorNeutralStroke1}`,
-    borderRadius: tokens.borderRadiusLarge,
-    padding: '28px',
-    textAlign: 'center',
+    border: '1.5px dashed #d6d3cf',
+    borderRadius: '10px',
+    backgroundColor: '#fafafa',
+    padding: '32px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
     cursor: 'pointer',
     color: tokens.colorNeutralForeground3,
     marginTop: '12px'
@@ -50,6 +54,7 @@ function formatBytes(n: number): string {
 
 export default function ContainerDeployPage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [caps, setCaps] = useState<ContainerCapabilities | null>(null);
   const [apps, setApps] = useState<StagedApp[]>([]);
@@ -125,6 +130,9 @@ export default function ContainerDeployPage() {
   return (
     <div className={styles.stack}>
       <Title2>Container PTE Deployment</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Publish, sync and install staged apps to local Docker containers.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {caps && !caps.bcContainerHelper && (
         <MessageBar intent="warning">
@@ -136,8 +144,8 @@ export default function ContainerDeployPage() {
         </MessageBar>
       )}
 
-      <Card className={styles.card}>
-        <Title3>1. Upload apps</Title3>
+      <Card className={shared.card}>
+        <Title3><span className={shared.stepNum}>1</span>Upload apps</Title3>
         <div
           className={`${styles.dropZone} ${dragOver ? styles.dropZoneActive : ''}`}
           onClick={() => fileInput.current?.click()}
@@ -194,8 +202,8 @@ export default function ContainerDeployPage() {
         )}
       </Card>
 
-      <Card className={styles.card}>
-        <Title3>2. Select containers</Title3>
+      <Card className={shared.card}>
+        <Title3><span className={shared.stepNum}>2</span>Select containers</Title3>
         {containers.length === 0 && (
           <Text block size={200} style={{ marginTop: '8px', color: tokens.colorNeutralForeground3 }}>
             No containers configured. Add them on the Containers page.
@@ -217,8 +225,8 @@ export default function ContainerDeployPage() {
         </div>
       </Card>
 
-      <Card className={styles.card}>
-        <Title3>3. Options &amp; deploy</Title3>
+      <Card className={shared.card}>
+        <Title3><span className={shared.stepNum}>3</span>Options &amp; deploy</Title3>
         <div className={styles.row} style={{ marginTop: '12px' }}>
           <Field label="Sync mode">
             <Dropdown
@@ -248,7 +256,7 @@ export default function ContainerDeployPage() {
       </Card>
 
       {activeRun && activeRun.kind === 'container' && (
-        <Card className={styles.card}>
+        <Card className={shared.card}>
           <div className={styles.row} style={{ justifyContent: 'space-between' }}>
             <Title3>Run {activeRun.status === 'running' ? 'in progress' : 'finished'}</Title3>
             {activeRun.status === 'running' && <Spinner size="tiny" />}

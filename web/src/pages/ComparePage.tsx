@@ -6,11 +6,20 @@ import {
 } from '@fluentui/react-components';
 import { ArrowSync24Regular, Search24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
+import EmptyState from '../components/EmptyState';
+import { useSharedStyles } from '../theme';
 import { Settings } from '../types';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px' },
-  card: { padding: '20px', overflowX: 'auto' },
+  cardWide: {
+    padding: '20px',
+    overflowX: 'auto',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e7e5e1',
+    borderRadius: '10px',
+    boxShadow: 'none'
+  },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   tenantGroup: { marginTop: '8px' },
   envList: { display: 'flex', gap: '16px', flexWrap: 'wrap', marginLeft: '28px' },
@@ -45,6 +54,7 @@ interface CompareResult {
 
 export default function ComparePage() {
   const styles = useStyles();
+  const shared = useSharedStyles();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [targets, setTargets] = useState<Set<string> | null>(null); // null = not loaded yet
   const [result, setResult] = useState<CompareResult | null>(null);
@@ -89,9 +99,12 @@ export default function ComparePage() {
   return (
     <div className={styles.stack}>
       <Title2>Compare App Versions</Title2>
+      <Text size={300} className={shared.pageDesc}>
+        Installed versions side by side across environments, with drift flagged.
+      </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
 
-      <Card className={styles.card}>
+      <Card className={styles.cardWide}>
         <Text weight="semibold">Environments to compare</Text>
         {settings?.tenants.map(tenant => {
           const envs = Object.entries(tenant.environments).filter(([, e]) => e);
@@ -138,7 +151,7 @@ export default function ComparePage() {
         )}
       </Card>
 
-      <Card className={styles.card}>
+      <Card className={styles.cardWide}>
         <div className={styles.row}>
           <Input
             contentBefore={<Search24Regular />}
@@ -173,15 +186,16 @@ export default function ComparePage() {
       {loading && <Spinner label="Querying environments..." />}
 
       {!result && !loading && (
-        <Card className={styles.card}>
-          <Text style={{ color: tokens.colorNeutralForeground3 }}>
-            Select environments and click Compare.
-          </Text>
+        <Card className={styles.cardWide}>
+          <EmptyState
+            title="Nothing compared yet"
+            hint="Select environments and click Compare — nothing is fetched until you ask."
+          />
         </Card>
       )}
 
       {result && !loading && (
-        <Card className={styles.card}>
+        <Card className={styles.cardWide}>
           {result.columns.some(c => c.error) && (
             <MessageBar intent="warning" style={{ marginBottom: '12px' }}>
               <MessageBarBody>
