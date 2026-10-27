@@ -70,7 +70,7 @@ export interface DeployTargetResult {
   updatedAt: string;
 }
 
-export type RunStatus = 'running' | 'completed' | 'completed-with-errors' | 'failed';
+export type RunStatus = 'waiting' | 'running' | 'completed' | 'completed-with-errors' | 'failed' | 'canceled';
 
 export interface DeployRun {
   id: string;
@@ -82,6 +82,9 @@ export interface DeployRun {
   schedule?: ScheduleOption;
   schemaSync?: SchemaSyncOption;
   acceptIsvEula?: boolean;
+  delayMinutes?: number;
+  /** Set while status is 'waiting' — when the delayed run will start */
+  scheduledStartAt?: string;
   results: DeployTargetResult[];
   log: string[];
 }

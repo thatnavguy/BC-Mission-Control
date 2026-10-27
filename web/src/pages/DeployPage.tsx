@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge, Button, Card, Checkbox, Dialog, DialogActions, DialogBody,
   DialogContent, DialogSurface, DialogTitle, Dropdown, Field, makeStyles,
-  MessageBar, MessageBarBody, Option, Spinner, Table, TableBody, TableCell,
+  MessageBar, MessageBarBody, Option, SpinButton, Spinner, Table, TableBody, TableCell,
   TableHeader, TableHeaderCell, TableRow, Text, Title2, Title3, tokens
 } from '@fluentui/react-components';
 import {
@@ -65,6 +65,7 @@ export default function DeployPage() {
   const [targets, setTargets] = useState<Set<string>>(new Set()); // `${tenantId}|${env}`
   const [schedule, setSchedule] = useState<'Immediate' | 'UpdateWindow'>('Immediate');
   const [schemaSync, setSchemaSync] = useState<'Add' | 'Force'>('Add');
+  const [delay, setDelay] = useState(0);
   const [acceptEula, setAcceptEula] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -83,7 +84,7 @@ export default function DeployPage() {
     setSettings(s);
     setAuth(a);
     setApps(appList);
-    setActiveRun(prev => prev ?? runs.find(r => r.status === 'running') ?? null);
+    setActiveRun(prev => prev ?? runs.find(r => r.status === 'running' || r.status === 'waiting') ?? null);
     return appList;
   }, []);
 
@@ -92,7 +93,7 @@ export default function DeployPage() {
   // Live updates for the active run
   useEffect(() => {
     return subscribeRuns(run => {
-      setActiveRun(prev => (prev && prev.id === run.id ? { ...run } : prev ?? (run.status === 'running' ? { ...run } : null)));
+      setActiveRun(prev => (prev && prev.id === run.id ? { ...run } : prev ?? (run.status === 'running' || run.status === 'waiting' ? { ...run } : null)));
     });
   }, []);
 
@@ -139,7 +140,8 @@ export default function DeployPage() {
         }),
         schedule,
         schemaSync,
-        acceptIsvEula: acceptEula
+        acceptIsvEula: acceptEula,
+        delayMinutes: delay
       });
       setActiveRun(run);
       setConfirming(false);
@@ -149,9 +151,20 @@ export default function DeployPage() {
     }
   };
 
+  const cancelActiveRun = async () => {
+    if (!activeRun) return;
+    setError('');
+    try {
+      await api.post(`/api/runs/${activeRun.id}/cancel`);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   const readyToDeploy =
     selectedApps.size > 0 && targets.size > 0 && !!auth?.signedIn && !auth?.expired &&
-    (schedule === 'Immediate' || acceptEula) && activeRun?.status !== 'running';
+    (schedule === 'Immediate' || acceptEula) &&
+    activeRun?.status !== 'running' && activeRun?.status !== 'waiting';
 
   return (
     <div className={styles.stack}>
@@ -314,6 +327,18 @@ export default function DeployPage() {
               <Option value="Force">Force</Option>
             </Dropdown>
           </Field>
+          <Field label={delay > 0 ? `Start in ${delay} min` : 'Start delay (minutes)'}>
+            <SpinButton
+              value={delay}
+              min={0}
+              max={1440}
+              onChange={(_e, d) => {
+                const v = d.value ?? parseInt(d.displayValue ?? '', 10);
+                setDelay(Number.isFinite(v) ? Math.max(0, Math.min(1440, v)) : 0);
+              }}
+              style={{ minWidth: '120px' }}
+            />
+          </Field>
           {schedule === 'UpdateWindow' && (
             <Checkbox
               label="I accept the ISV EULA for these PTEs"
@@ -341,11 +366,18 @@ export default function DeployPage() {
         <Card className={shared.card}>
           <div className={styles.row} style={{ justifyContent: 'space-between' }}>
             <Title3>
-              Run {activeRun.status === 'running' ? 'in progress' : 'finished'}
+              Run {activeRun.status === 'running' ? 'in progress' : activeRun.status === 'waiting' ? 'waiting to start' : 'finished'}
             </Title3>
-            {activeRun.status === 'running'
-              ? <Spinner size="tiny" />
-              : statusSummaryBadge(activeRun)}
+            {activeRun.status === 'running' && <Spinner size="tiny" />}
+            {activeRun.status === 'waiting' && (
+              <div className={styles.row} style={{ alignItems: 'center', gap: '8px' }}>
+                <Badge appearance="filled" color="informative">
+                  Starts {activeRun.scheduledStartAt ? new Date(activeRun.scheduledStartAt).toLocaleTimeString() : 'soon'}
+                </Badge>
+                <Button appearance="secondary" onClick={cancelActiveRun}>Cancel</Button>
+              </div>
+            )}
+            {activeRun.status !== 'running' && activeRun.status !== 'waiting' && statusSummaryBadge(activeRun)}
           </div>
           <Table size="small" style={{ marginTop: '12px' }}>
             <TableHeader>
@@ -383,7 +415,14 @@ export default function DeployPage() {
             <DialogContent>
               Deploy {selectedApps.size} app(s) to {targets.size} environment(s)
               {schedule === 'UpdateWindow' ? ' during the next update window' : ' immediately'}
-              {' '}with schema sync mode {schemaSync}?
+              {' '}with schema sync mode {schemaSync}
+              {delay > 0 ? ` — starting in ${delay} minutes` : ''}?
+              {delay > 0 && (
+                <div style={{ marginTop: '8px' }}>
+                  The deployment runs on this PC — keep it awake and Mission Control running.
+                  You can close this page and cancel any time before it starts.
+                </div>
+              )}
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setConfirming(false)}>Cancel</Button>
@@ -397,6 +436,7 @@ export default function DeployPage() {
 }
 
 function statusSummaryBadge(run: DeployRun) {
+  if (run.status === 'canceled') return <Badge appearance="filled" color="subtle">Canceled</Badge>;
   const failed = run.results.filter(r => r.status === 'failed').length;
   if (run.status === 'failed' || failed === run.results.length) {
     return <Badge appearance="filled" color="danger">Failed</Badge>;

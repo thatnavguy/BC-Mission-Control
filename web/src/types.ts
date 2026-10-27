@@ -57,11 +57,14 @@ export interface DeployRun {
   kind: 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment';
   startedAt: string;
   finishedAt?: string;
-  status: 'running' | 'completed' | 'completed-with-errors' | 'failed';
+  status: 'waiting' | 'running' | 'completed' | 'completed-with-errors' | 'failed' | 'canceled';
   /** PTE deploy runs only */
   schedule?: 'Immediate' | 'UpdateWindow';
   schemaSync?: 'Add' | 'Force';
   acceptIsvEula?: boolean;
+  delayMinutes?: number;
+  /** Set while status is 'waiting' — when the delayed run will start */
+  scheduledStartAt?: string;
   results: DeployTargetResult[];
   log: string[];
 }

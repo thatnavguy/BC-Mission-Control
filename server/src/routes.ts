@@ -9,7 +9,7 @@ import {
 } from './auth';
 import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
 import { buildCompareMatrix } from './compare';
-import { listRuns, getRun, onRunUpdate, startDeployRun, DeployRequest } from './deploy';
+import { listRuns, getRun, onRunUpdate, startDeployRun, cancelRun, DeployRequest } from './deploy';
 import { startAppUpdateRun, startEnvironmentRun } from './ops';
 import { parseAppManifest } from './appManifest';
 import { StagedApp, TenantConfig, ContainerConfig } from './types';
@@ -470,13 +470,22 @@ router.post('/deploy', asyncWrap(async (req, res) => {
     targets: Array.isArray(body.targets) ? body.targets : [],
     schedule: body.schedule === 'UpdateWindow' ? 'UpdateWindow' : 'Immediate',
     schemaSync: body.schemaSync === 'Force' ? 'Force' : 'Add',
-    acceptIsvEula: body.acceptIsvEula === true
+    acceptIsvEula: body.acceptIsvEula === true,
+    delayMinutes: typeof body.delayMinutes === 'number' ? body.delayMinutes : 0
   });
   res.status(201).json(run);
 }));
 
 router.get('/runs', (_req, res) => {
   res.json(listRuns());
+});
+
+router.post('/runs/:id/cancel', (req, res) => {
+  try {
+    res.json(cancelRun(req.params.id));
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.get('/runs/:id', (req, res) => {

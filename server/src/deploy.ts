@@ -10,8 +10,10 @@ import {
 } from './types';
 
 const MAX_PARALLEL = 5;
+const MAX_DELAY_MINUTES = 24 * 60;
 const PTE_SCHEDULE_MAX_BYTES = 50 * 1000 * 1000;
 const runs = new Map<string, DeployRun>();
+const delayTimers = new Map<string, NodeJS.Timeout>();
 const listeners = new Set<(run: DeployRun) => void>();
 
 export function onRunUpdate(listener: (run: DeployRun) => void): () => void {
@@ -54,6 +56,8 @@ export interface DeployRequest {
   schedule: ScheduleOption;
   schemaSync: SchemaSyncOption;
   acceptIsvEula: boolean;
+  /** Minutes to wait before the run starts executing (0 = start now). */
+  delayMinutes?: number;
 }
 
 export async function startDeployRun(req: DeployRequest): Promise<DeployRun> {
@@ -88,6 +92,11 @@ export async function startDeployRun(req: DeployRequest): Promise<DeployRun> {
     }
   }
 
+  const delayMinutes = Math.floor(req.delayMinutes ?? 0);
+  if (delayMinutes < 0 || delayMinutes > MAX_DELAY_MINUTES) {
+    throw new Error(`Delay must be between 0 and ${MAX_DELAY_MINUTES} minutes`);
+  }
+
   const run: DeployRun = {
     id: randomUUID(),
     kind: 'cloud',
@@ -116,16 +125,63 @@ export async function startDeployRun(req: DeployRequest): Promise<DeployRun> {
   }
   runs.set(run.id, run);
   run.log.push(`[${run.startedAt}] Run started — schedule: ${req.schedule}, schemaSync: ${req.schemaSync}`);
+
+  const execute = () => {
+    run.log.push(`[${new Date().toISOString()}] Deployment starting`);
+    executeRun(run, apps, req).catch(err => {
+      run.log.push(`[${new Date().toISOString()}] Fatal: ${err.message}`);
+      run.status = 'failed';
+      run.finishedAt = new Date().toISOString();
+      emit(run);
+    });
+  };
+
+  if (delayMinutes > 0) {
+    // Hold the run — nothing is sent to BC until the delay elapses.
+    // The timer lives in this server process; a restart loses pending runs.
+    run.status = 'waiting';
+    run.delayMinutes = delayMinutes;
+    run.scheduledStartAt = new Date(Date.now() + delayMinutes * 60000).toISOString();
+    run.log.push(`[${run.startedAt}] Delayed start — deployment begins at ${run.scheduledStartAt}`);
+    emit(run);
+    const timer = setTimeout(() => {
+      delayTimers.delete(run.id);
+      if (run.status !== 'waiting') return;
+      run.status = 'running';
+      emit(run);
+      execute();
+    }, delayMinutes * 60000);
+    delayTimers.set(run.id, timer);
+    return run;
+  }
+
   emit(run);
 
   // Fire and forget — progress flows through SSE
-  executeRun(run, apps, req).catch(err => {
-    run.log.push(`[${new Date().toISOString()}] Fatal: ${err.message}`);
-    run.status = 'failed';
-    run.finishedAt = new Date().toISOString();
-    emit(run);
-  });
+  execute();
 
+  return run;
+}
+
+/** Cancel a run that is still waiting for its delayed start. */
+export function cancelRun(id: string): DeployRun {
+  const run = runs.get(id);
+  if (!run) throw new Error('Run not found');
+  if (run.status !== 'waiting') throw new Error('Only a run waiting for its delayed start can be canceled');
+  const timer = delayTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    delayTimers.delete(id);
+  }
+  run.status = 'canceled';
+  run.finishedAt = new Date().toISOString();
+  for (const r of run.results) {
+    if (r.status === 'pending') {
+      Object.assign(r, { status: 'skipped' as const, message: 'Canceled before start', updatedAt: run.finishedAt });
+    }
+  }
+  run.log.push(`[${run.finishedAt}] Run canceled by user before start`);
+  emit(run);
   return run;
 }
 

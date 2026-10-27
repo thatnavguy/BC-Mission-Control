@@ -20,10 +20,12 @@ const useStyles = makeStyles({
 
 function runBadge(run: DeployRun) {
   switch (run.status) {
+    case 'waiting': return <Badge appearance="filled" color="informative">Waiting to start</Badge>;
     case 'running': return <Badge appearance="filled" color="warning">Running</Badge>;
     case 'completed': return <Badge appearance="filled" color="success">Completed</Badge>;
     case 'completed-with-errors': return <Badge appearance="filled" color="warning">Completed with errors</Badge>;
     case 'failed': return <Badge appearance="filled" color="danger">Failed</Badge>;
+    case 'canceled': return <Badge appearance="filled" color="subtle">Canceled</Badge>;
   }
 }
 
