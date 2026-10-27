@@ -89,9 +89,18 @@ Data (settings, token, uploaded apps) lives in `server/data/` — keep it privat
 
 ## Run
 
-**Double-click `Start-MissionControl.bat`** — it installs dependencies and builds
-on first run, starts the server, and opens http://127.0.0.1:4321 in your browser.
-Keep the console window open while using the app.
+1. Get the code:
+
+   ```powershell
+   git clone https://github.com/thatnavguy/BC-Mission-Control.git
+   cd BC-Mission-Control
+   ```
+
+   Or use **Code → Download ZIP** on GitHub and extract it.
+
+2. **Double-click `Start-MissionControl.bat`** — it installs dependencies and builds
+   on first run, starts the server, and opens http://127.0.0.1:4321 in your browser.
+   Keep the console window open while using the app.
 
 For a desktop shortcut, run `Create-DesktopShortcut.ps1` once
 (right-click → Run with PowerShell).
