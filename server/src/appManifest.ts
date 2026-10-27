@@ -3,7 +3,10 @@ import { AppManifest } from './types';
 
 /** Extract app identity from a .app package (NavxManifest.xml inside the zip). */
 export function parseAppManifest(buffer: Buffer): AppManifest {
-  const zip = new AdmZip(buffer);
+  // .app packages prepend a 40-byte 'NAVX' header to the zip archive; adm-zip
+  // resolves central-directory offsets from byte 0, so strip it first.
+  const zipData = buffer.subarray(0, 4).toString('ascii') === 'NAVX' ? buffer.subarray(40) : buffer;
+  const zip = new AdmZip(zipData);
   const entry = zip.getEntry('NavxManifest.xml');
   if (!entry) throw new Error('NavxManifest.xml not found — not a valid .app package');
   const xml = entry.getData().toString('utf8').replace(/^\uFEFF/, '');
