@@ -7,6 +7,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowSync24Regular, ArrowUp24Regular, CalendarClock24Regular } from '@fluentui/react-icons';
 import { api, subscribeRuns } from '../api';
+import { getCached, setCached } from '../pageCache';
 import EmptyState from '../components/EmptyState';
 import { useSharedStyles } from '../theme';
 import { AppUpdateInfo, DeployRun, Settings } from '../types';
@@ -55,6 +56,12 @@ export default function UpdatesPage() {
   const [useWindow, setUseWindow] = useState(false);
   const [activeRun, setActiveRun] = useState<DeployRun | null>(null);
 
+  const restore = (tid: string, env: string) => {
+    const hit = getCached<AppUpdateInfo[]>(`updates:${tid}|${env}`);
+    setUpdates(hit ?? null);
+    setSelected(hit ? new Set(hit.map(u => u.appId)) : new Set());
+  };
+
   useEffect(() => {
     api.get<Settings>('/api/settings').then(s => {
       setSettings(s);
@@ -62,7 +69,10 @@ export default function UpdatesPage() {
       if (first) {
         setTenantId(first.id);
         const firstEnv = Object.entries(first.environments).find(([, e]) => e);
-        if (firstEnv) setEnvironment(firstEnv[0]);
+        if (firstEnv) {
+          setEnvironment(firstEnv[0]);
+          restore(first.id, firstEnv[0]);
+        }
       }
     }).catch(e => setError(e.message));
   }, []);
@@ -87,6 +97,7 @@ export default function UpdatesPage() {
       const list = await api.get<AppUpdateInfo[]>(`/api/app-updates?tenantId=${encodeURIComponent(tenantId)}&environment=${encodeURIComponent(environment)}`);
       setUpdates(list);
       setSelected(new Set(list.map(u => u.appId)));
+      setCached(`updates:${tenantId}|${environment}`, list);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -134,8 +145,9 @@ export default function UpdatesPage() {
                 setTenantId(id);
                 const t = settings?.tenants.find(x => x.id === id);
                 const firstEnv = t ? Object.entries(t.environments).find(([, en]) => en) : undefined;
-                setEnvironment(firstEnv ? firstEnv[0] : '');
-                setUpdates(null);
+                const env = firstEnv ? firstEnv[0] : '';
+                setEnvironment(env);
+                restore(id, env);
               }}
             >
               {settings?.tenants.map(t => <Option key={t.id} value={t.id}>{t.name}</Option>)}
@@ -145,7 +157,11 @@ export default function UpdatesPage() {
             <Dropdown
               value={environment}
               selectedOptions={environment ? [environment] : []}
-              onOptionSelect={(_e, d) => { setEnvironment(String(d.optionValue ?? '')); setUpdates(null); }}
+              onOptionSelect={(_e, d) => {
+                const env = String(d.optionValue ?? '');
+                setEnvironment(env);
+                restore(tenantId, env);
+              }}
             >
               {envNames.map(n => <Option key={n} value={n}>{n}</Option>)}
             </Dropdown>

@@ -6,6 +6,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowSync24Regular, Search24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
+import { getCached, setCached } from '../pageCache';
 import EmptyState from '../components/EmptyState';
 import { useSharedStyles } from '../theme';
 import { Settings } from '../types';
@@ -52,6 +53,13 @@ interface CompareResult {
   rows: CompareRow[];
 }
 
+interface CompareCache {
+  appName: string;
+  publisher: string;
+  targets: string[];
+  result: CompareResult;
+}
+
 export default function ComparePage() {
   const styles = useStyles();
   const shared = useSharedStyles();
@@ -67,6 +75,14 @@ export default function ComparePage() {
   useEffect(() => {
     api.get<Settings>('/api/settings').then(s => {
       setSettings(s);
+      const hit = getCached<CompareCache>('compare');
+      if (hit) {
+        setAppName(hit.appName);
+        setPublisher(hit.publisher);
+        setTargets(new Set(hit.targets));
+        setResult(hit.result);
+        return;
+      }
       // Default: all enabled environments selected
       const all = new Set<string>();
       for (const t of s.tenants) {
@@ -86,7 +102,14 @@ export default function ComparePage() {
       if (n) params.set('appName', n);
       if (p) params.set('publisher', p);
       if (sel) for (const t of sel) params.append('target', t);
-      setResult(await api.get<CompareResult>(`/api/compare?${params}`));
+      const result = await api.get<CompareResult>(`/api/compare?${params}`);
+      setResult(result);
+      setCached('compare', {
+        appName: n ?? '',
+        publisher: p ?? '',
+        targets: sel ? [...sel] : [],
+        result
+      } satisfies CompareCache);
     } catch (e: any) {
       setError(e.message);
     } finally {

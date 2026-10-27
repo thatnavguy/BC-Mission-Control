@@ -6,6 +6,7 @@ import {
 } from '@fluentui/react-components';
 import { ArrowSync24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
+import { getCached, setCached } from '../pageCache';
 import EmptyState from '../components/EmptyState';
 import { useSharedStyles } from '../theme';
 import { Settings, StorageResponse } from '../types';
@@ -54,7 +55,12 @@ export default function StoragePage() {
   useEffect(() => {
     api.get<Settings>('/api/settings').then(s => {
       setSettings(s);
-      if (s.tenants[0]) setTenantId(s.tenants[0].id);
+      const first = s.tenants[0];
+      if (first) {
+        setTenantId(first.id);
+        const hit = getCached<StorageResponse>(`storage:${first.id}`);
+        if (hit) setData(hit);
+      }
     }).catch(e => setError(e.message));
   }, []);
 
@@ -63,7 +69,9 @@ export default function StoragePage() {
     setError('');
     setLoading(true);
     try {
-      setData(await api.get<StorageResponse>(`/api/storage?tenantId=${encodeURIComponent(tenantId)}`));
+      const resp = await api.get<StorageResponse>(`/api/storage?tenantId=${encodeURIComponent(tenantId)}`);
+      setData(resp);
+      setCached(`storage:${tenantId}`, resp);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -95,7 +103,11 @@ export default function StoragePage() {
             <Dropdown
               value={tenant?.name ?? ''}
               selectedOptions={tenantId ? [tenantId] : []}
-              onOptionSelect={(_e, d) => { setTenantId(String(d.optionValue ?? '')); setData(null); }}
+              onOptionSelect={(_e, d) => {
+                const id = String(d.optionValue ?? '');
+                setTenantId(id);
+                setData(getCached<StorageResponse>(`storage:${id}`) ?? null);
+              }}
             >
               {settings?.tenants.map(t => <Option key={t.id} value={t.id}>{t.name}</Option>)}
             </Dropdown>
