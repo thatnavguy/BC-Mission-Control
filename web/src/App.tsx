@@ -6,7 +6,7 @@ import {
   ArrowUpload24Regular, Settings24Regular, History24Regular,
   AppsList24Regular, Grid24Regular, PlugConnected24Regular, Pulse24Regular,
   Cube24Regular, Rocket24Regular, Globe24Regular, ArrowClockwise24Regular,
-  Database24Regular
+  Database24Regular, DocumentBulletList24Regular
 } from '@fluentui/react-icons';
 import { fox } from './theme';
 import DeployPage from './pages/DeployPage';
@@ -21,6 +21,7 @@ import ContainerDeployPage from './pages/ContainerDeployPage';
 import EnvironmentsPage from './pages/EnvironmentsPage';
 import UpdatesPage from './pages/UpdatesPage';
 import StoragePage from './pages/StoragePage';
+import OperationsPage from './pages/OperationsPage';
 
 const useStyles = makeStyles({
   shell: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ffffff' },
@@ -81,9 +82,9 @@ const useStyles = makeStyles({
   }
 });
 
-type PageKey = 'environments' | 'deploy' | 'apps' | 'updates' | 'compare' | 'status' | 'storage' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
+type PageKey = 'environments' | 'deploy' | 'apps' | 'updates' | 'compare' | 'status' | 'operations' | 'storage' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
 
-const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'compare', 'status', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'];
+const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'];
 
 export default function App() {
   const styles = useStyles();
@@ -126,6 +127,7 @@ export default function App() {
           <Tab value="updates" icon={<ArrowClockwise24Regular />}>App Updates</Tab>
           <Tab value="compare" icon={<Grid24Regular />}>Compare Versions</Tab>
           <Tab value="status" icon={<Pulse24Regular />}>Deployment Status</Tab>
+          <Tab value="operations" icon={<DocumentBulletList24Regular />}>App Operations</Tab>
           <Tab value="storage" icon={<Database24Regular />}>Storage</Tab>
           <Tab value="api" icon={<PlugConnected24Regular />}>API Explorer</Tab>
           <div className={styles.section}>Container</div>
@@ -144,6 +146,7 @@ export default function App() {
           {page === 'updates' && <UpdatesPage />}
           {page === 'compare' && <ComparePage />}
           {page === 'status' && <StatusPage />}
+          {page === 'operations' && <OperationsPage />}
           {page === 'storage' && <StoragePage />}
           {page === 'api' && <ApiExplorerPage />}
           {page === 'cdeploy' && <ContainerDeployPage />}

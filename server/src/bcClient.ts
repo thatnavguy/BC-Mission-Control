@@ -217,9 +217,36 @@ export interface EnvironmentOperation {
   createdOn?: string;
   startedOn?: string;
   completedOn?: string;
+  createdBy?: string;
   errorMessage?: string;
   environmentName?: string;
   environmentType?: string;
+  parameters?: Record<string, unknown>;
+}
+
+/** All operations (app + environment) for one environment, newest first. */
+export async function getEnvironmentOperations(token: string, environment: string): Promise<EnvironmentOperation[]> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/operations`,
+    token
+  );
+  const ops: EnvironmentOperation[] = resp.value ?? [];
+  return ops.sort((a, b) => (b.createdOn ?? '').localeCompare(a.createdOn ?? ''));
+}
+
+/** Installed apps (global + PTE) — used to resolve appIds in operations to names. */
+export async function getInstalledApps(token: string, environment: string): Promise<{ appId: string; name: string; publisher: string; version: string }[]> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps`,
+    token
+  );
+  return (resp.value ?? []).map((a: any) => ({
+    // The API returns "id"; the docs say "appId" — accept both.
+    appId: a.appId ?? a.id,
+    name: a.name,
+    publisher: a.publisher,
+    version: a.version
+  }));
 }
 
 export async function createEnvironment(

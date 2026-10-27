@@ -7,7 +7,7 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getStorageQuotas, getUsedStorage, invokeExtensionAction, listEnvironments } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getEnvironmentOperations, getInstalledApps, getStorageQuotas, getUsedStorage, invokeExtensionAction, listEnvironments } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, DeployRequest } from './deploy';
 import { startAppUpdateRun, startEnvironmentRun } from './ops';
@@ -199,6 +199,20 @@ router.post('/app-updates/run', asyncWrap(async (req, res) => {
     useEnvironmentUpdateWindow: body.useEnvironmentUpdateWindow === true
   });
   res.status(201).json(run);
+}));
+
+/** All operations (app installs/updates/uninstalls, environment ops) for one environment. */
+router.get('/operations', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  const environment = String(req.query.environment || '');
+  if (!tenantId || !environment) { res.status(400).json({ error: 'tenantId and environment are required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  const [operations, apps] = await Promise.all([
+    getEnvironmentOperations(token, environment),
+    getInstalledApps(token, environment).catch(() => [])
+  ]);
+  res.json({ operations, apps });
 }));
 
 // ── Storage usage ────────────────────────────────────────────────────────────

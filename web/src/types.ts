@@ -112,6 +112,25 @@ export interface StorageResponse {
   quotas: StorageQuotas;
 }
 
+export interface EnvironmentOperation {
+  id: string;
+  type?: string;
+  status?: string;
+  createdOn?: string;
+  startedOn?: string;
+  completedOn?: string;
+  createdBy?: string;
+  errorMessage?: string;
+  environmentName?: string;
+  environmentType?: string;
+  parameters?: Record<string, unknown>;
+}
+
+export interface OperationsResponse {
+  operations: EnvironmentOperation[];
+  apps: { appId: string; name: string; publisher: string; version: string }[];
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   savedAt?: string;
