@@ -11,6 +11,7 @@ import {
 
 const MAX_PARALLEL = 5;
 const MAX_DELAY_MINUTES = 24 * 60;
+const MAX_RUNS = 100;
 const PTE_SCHEDULE_MAX_BYTES = 50 * 1000 * 1000;
 const runs = new Map<string, DeployRun>();
 const delayTimers = new Map<string, NodeJS.Timeout>();
@@ -25,9 +26,21 @@ function emit(run: DeployRun): void {
   for (const l of listeners) l(run);
 }
 
+/** Insert a run and prune the registry to MAX_RUNS (oldest finished runs first). */
+function addRun(run: DeployRun): void {
+  runs.set(run.id, run);
+  if (runs.size <= MAX_RUNS) return;
+  // Map iterates in insertion order, oldest first
+  for (const [id, existing] of runs) {
+    if (runs.size <= MAX_RUNS) break;
+    if (existing.status === 'running' || existing.status === 'waiting') continue;
+    runs.delete(id);
+  }
+}
+
 /** Register a run (used by container orchestration too) and broadcast it. */
 export function registerRun(run: DeployRun): void {
-  runs.set(run.id, run);
+  addRun(run);
   emit(run);
 }
 
@@ -123,7 +136,7 @@ export async function startDeployRun(req: DeployRequest): Promise<DeployRun> {
       });
     }
   }
-  runs.set(run.id, run);
+  addRun(run);
   run.log.push(`[${run.startedAt}] Run started — schedule: ${req.schedule}, schemaSync: ${req.schemaSync}`);
 
   const execute = () => {
