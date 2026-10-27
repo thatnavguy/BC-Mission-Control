@@ -7,7 +7,7 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getEnvironmentOperations, getEnvironmentUpdates, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, DeployRequest } from './deploy';
 import { startAppUpdateRun, startEnvironmentRun } from './ops';
@@ -224,6 +224,31 @@ router.get('/storage', asyncWrap(async (req, res) => {
   const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
   const [usage, quotas] = await Promise.all([getUsedStorage(token), getStorageQuotas(token)]);
   res.json({ usage, quotas });
+}));
+
+// ── Session management ───────────────────────────────────────────────────────
+
+router.get('/sessions', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  const environment = String(req.query.environment || '');
+  if (!tenantId || !environment) { res.status(400).json({ error: 'tenantId and environment are required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  res.json(await getActiveSessions(token, environment));
+}));
+
+router.delete('/sessions/:sessionId', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  const environment = String(req.query.environment || '');
+  const sessionId = Number(req.params.sessionId);
+  if (!tenantId || !environment || !Number.isInteger(sessionId)) {
+    res.status(400).json({ error: 'tenantId, environment and a numeric sessionId are required' });
+    return;
+  }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  await killSession(token, environment, sessionId);
+  res.json({ ok: true });
 }));
 
 // ── Environment update management ────────────────────────────────────────────

@@ -170,6 +170,50 @@ export async function getAppOperation(
   return op?.id ? op : undefined;
 }
 
+// ── Session management (Admin Center API) ────────────────────────────────────
+
+export interface SessionInfo {
+  sessionId: number;
+  userId: string;
+  clientType: string;
+  logOnDate: string;
+  entryPointOperation?: string;
+  entryPointObjectName?: string;
+  currentObjectName?: string;
+  currentObjectId?: number;
+  currentObjectType?: string;
+  currentOperationDuration?: number;
+}
+
+export async function getActiveSessions(token: string, environment: string): Promise<SessionInfo[]> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/sessions`,
+    token
+  );
+  return (resp.value ?? []).map((s: any) => ({
+    sessionId: Number(s.sessionId),
+    userId: s.userId ?? '',
+    clientType: s.clientType ?? '',
+    logOnDate: s.logOnDate ?? '',
+    entryPointOperation: s.entryPointOperation,
+    entryPointObjectName: s.entryPointObjectName,
+    currentObjectName: s.currentObjectName,
+    currentObjectId: s.currentObjectId,
+    currentObjectType: s.currentObjectType,
+    currentOperationDuration: s.currentOperationDuration
+  }));
+}
+
+/** Terminates an active session, disconnecting the user. */
+export async function killSession(token: string, environment: string, sessionId: number): Promise<void> {
+  await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/sessions/${sessionId}`,
+    token,
+    { method: 'DELETE' },
+    true
+  );
+}
+
 // ── Environment update management (Admin Center API) ─────────────────────────
 
 export interface EnvironmentUpdateInfo {

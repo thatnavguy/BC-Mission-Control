@@ -166,6 +166,19 @@ export interface TimeZoneInfo {
   currentUtcOffset: string;
 }
 
+export interface SessionInfo {
+  sessionId: number;
+  userId: string;
+  clientType: string;
+  logOnDate: string;
+  entryPointOperation?: string;
+  entryPointObjectName?: string;
+  currentObjectName?: string;
+  currentObjectId?: number;
+  currentObjectType?: string;
+  currentOperationDuration?: number;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   savedAt?: string;

@@ -15,6 +15,7 @@ BC Mission Control is a web page that runs on your own computer. It lets you:
 - See which app versions are installed in each environment.
 - Find and apply AppSource app updates.
 - See scheduled BC platform updates and set the maintenance window.
+- See who is signed in to an environment and end stuck sessions.
 - Review the app operations history of an environment.
 - Compare versions across environments to spot differences.
 - Check database storage use against your tenant quota.
@@ -230,6 +231,25 @@ Check database storage use against your tenant quota.
 
 If you are over quota, Microsoft blocks creating new environments until you
 free space or buy more capacity.
+
+### Sessions
+
+See who is connected to an environment right now, and disconnect a session
+when you need to — for example before a deployment or when a session is
+stuck.
+
+![Sessions page](screenshots/sessions.png)
+
+1. Pick a **Tenant** and **Environment**, then click **Load sessions**.
+2. The table lists every active session:
+   - **Client** — WebClient (a person in the browser), WebService
+     (an integration), or a background task.
+   - **Currently in** and **Operation running** — what the session is doing
+     and for how long.
+3. Click **End** next to a session and confirm to disconnect it.
+
+> **Warning:** Ending a session throws the user out immediately. Unsaved work
+> in that session is lost.
 
 ### API Explorer
 
