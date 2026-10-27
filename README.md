@@ -6,6 +6,8 @@ A fast, local web UI for managing Business Central — cloud (SaaS) tenants and
 local Docker containers from one place. The Node backend talks to the Business
 Central Admin Center and Automation APIs directly; no scripts to run by hand.
 
+Built by [Teddy Herryanto](https://thatnavguy.com).
+
 **New here? Read the [User Guide](docs/UserGuide.md)** — step-by-step
 instructions with screenshots for every page.
 
@@ -115,3 +117,7 @@ npm run dev:web      # terminal 2 — UI on 5173 (proxies /api to 4321)
 2. Add a tenant (name + tenant ID), click **Load environments**, tick the
    environments you work with. Soft-deleted environments are hidden.
 3. Go to **PTE Deployment**, drop your `.app` files, pick targets, deploy.
+
+## License
+
+[MIT](LICENSE) — © 2026 [Teddy Herryanto](https://thatnavguy.com).
