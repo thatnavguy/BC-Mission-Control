@@ -170,6 +170,112 @@ export async function getAppOperation(
   return op?.id ? op : undefined;
 }
 
+// ── Environment update management (Admin Center API) ─────────────────────────
+
+export interface EnvironmentUpdateInfo {
+  targetVersion: string;
+  available: boolean;
+  selected: boolean;
+  targetVersionType?: string;
+  updateStatus?: string;
+  scheduleDetails?: {
+    latestSelectableDateTime?: string;
+    selectedDateTime?: string;
+    ignoreUpdateWindow?: boolean;
+    rolloutStatus?: string;
+  };
+  expectedAvailability?: { month: number; year: number };
+}
+
+export async function getEnvironmentUpdates(token: string, environment: string): Promise<EnvironmentUpdateInfo[]> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/updates`,
+    token
+  );
+  return resp.value ?? [];
+}
+
+export interface UpdateWindow {
+  preferredStartTime?: string;
+  preferredEndTime?: string;
+  timeZoneId?: string;
+  preferredStartTimeUtc?: string;
+  preferredEndTimeUtc?: string;
+}
+
+export async function getUpdateWindow(token: string, environment: string): Promise<UpdateWindow | null> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/settings/upgrade`,
+    token
+  );
+  return resp && Object.keys(resp).length > 0 ? resp : null;
+}
+
+/** Set the update window with wall time + time zone (recommended over the UTC parameter set). */
+export async function setUpdateWindow(
+  token: string,
+  environment: string,
+  window: { preferredStartTime: string; preferredEndTime: string; timeZoneId: string }
+): Promise<UpdateWindow> {
+  return request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/settings/upgrade`,
+    token,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(window)
+    }
+  );
+}
+
+/** Select the target version (and optionally a date) for the next environment update. */
+export async function selectTargetVersion(
+  token: string,
+  environment: string,
+  targetVersion: string,
+  schedule?: { selectedDateTime?: string; ignoreUpdateWindow?: boolean }
+): Promise<unknown> {
+  return request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/updates/${encodeURIComponent(targetVersion)}`,
+    token,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        selected: true,
+        ...(schedule?.selectedDateTime || schedule?.ignoreUpdateWindow !== undefined
+          ? {
+              scheduleDetails: {
+                ...(schedule.selectedDateTime ? { selectedDateTime: schedule.selectedDateTime } : {}),
+                ignoreUpdateWindow: schedule.ignoreUpdateWindow === true
+              }
+            }
+          : {})
+      })
+    }
+  );
+}
+
+export interface TimeZoneInfo {
+  id: string;
+  displayName: string;
+  currentUtcOffset: string;
+}
+
+// The time zone list is static; cache it for a day.
+let timezonesCache: { at: number; data: TimeZoneInfo[] } | null = null;
+
+export async function getTimezones(token: string): Promise<TimeZoneInfo[]> {
+  if (timezonesCache && Date.now() - timezonesCache.at < 24 * 60 * 60 * 1000) return timezonesCache.data;
+  const resp = await request(`${ADMIN_API}/applications/settings/timezones`, token);
+  const data: TimeZoneInfo[] = (resp.value ?? [])
+    .map((t: any) => ({ id: t.id, displayName: t.displayName, currentUtcOffset: t.currentUtcOffset }))
+    .filter((t: TimeZoneInfo) => !!t.id)
+    .sort((a: TimeZoneInfo, b: TimeZoneInfo) => a.displayName.localeCompare(b.displayName));
+  timezonesCache = { at: Date.now(), data };
+  return data;
+}
+
 // ── Storage usage (Admin Center API) ─────────────────────────────────────────
 
 export interface EnvironmentStorageUsage {

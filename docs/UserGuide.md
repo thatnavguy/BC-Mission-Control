@@ -14,6 +14,7 @@ BC Mission Control is a web page that runs on your own computer. It lets you:
 - Deploy apps (`.app` files) to cloud sandboxes and production environments.
 - See which app versions are installed in each environment.
 - Find and apply AppSource app updates.
+- See scheduled BC platform updates and set the maintenance window.
 - Review the app operations history of an environment.
 - Compare versions across environments to spot differences.
 - Check database storage use against your tenant quota.
@@ -151,6 +152,29 @@ Find and install newer AppSource (Marketplace) app versions in an environment.
      environment's maintenance window instead.
 
 When everything is up to date, the page says so.
+
+### BC Updates
+
+See which BC platform updates are coming for an environment, choose the target
+version, and set the maintenance window that updates run in.
+
+![BC Updates page](screenshots/bc-updates.png)
+
+1. Pick a **Tenant** and **Environment**, then click **Load update settings**.
+2. The **Update window** card shows when updates are allowed to run (for
+   example 21:00–07:00 in your time zone) and the environment's current
+   version.
+3. Click **Edit window** to change the start time, end time, or time zone.
+   The window must be at least 6 hours.
+4. The **Target versions** table lists every upcoming version:
+   - **Selected** marks the version the environment will update to next.
+   - **Scheduled for** shows the planned date; **Latest selectable date** is
+     your deadline for changing it.
+5. Click **Select** on a released version to make it the target, optionally
+   pick a date, and tick **Ignore the update window** to run outside the
+   maintenance window.
+
+Scheduled app installs from **App Updates** also run inside this window.
 
 ### Compare Versions
 

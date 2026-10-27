@@ -131,6 +131,41 @@ export interface OperationsResponse {
   apps: { appId: string; name: string; publisher: string; version: string }[];
 }
 
+export interface EnvironmentUpdateInfo {
+  targetVersion: string;
+  available: boolean;
+  selected: boolean;
+  targetVersionType?: string;
+  updateStatus?: string;
+  scheduleDetails?: {
+    latestSelectableDateTime?: string;
+    selectedDateTime?: string;
+    ignoreUpdateWindow?: boolean;
+    rolloutStatus?: string;
+  };
+  expectedAvailability?: { month: number; year: number };
+}
+
+export interface UpdateWindow {
+  preferredStartTime?: string;
+  preferredEndTime?: string;
+  timeZoneId?: string;
+  preferredStartTimeUtc?: string;
+  preferredEndTimeUtc?: string;
+}
+
+export interface UpdateManagementResponse {
+  updates: EnvironmentUpdateInfo[];
+  window: UpdateWindow | null;
+  currentVersion: string | null;
+}
+
+export interface TimeZoneInfo {
+  id: string;
+  displayName: string;
+  currentUtcOffset: string;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   savedAt?: string;

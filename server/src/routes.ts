@@ -7,7 +7,7 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getEnvironmentOperations, getInstalledApps, getStorageQuotas, getUsedStorage, invokeExtensionAction, listEnvironments } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getEnvironmentOperations, getEnvironmentUpdates, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, DeployRequest } from './deploy';
 import { startAppUpdateRun, startEnvironmentRun } from './ops';
@@ -224,6 +224,73 @@ router.get('/storage', asyncWrap(async (req, res) => {
   const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
   const [usage, quotas] = await Promise.all([getUsedStorage(token), getStorageQuotas(token)]);
   res.json({ usage, quotas });
+}));
+
+// ── Environment update management ────────────────────────────────────────────
+
+/** Scheduled BC updates + update window + current version for one environment. */
+router.get('/update-management', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  const environment = String(req.query.environment || '');
+  if (!tenantId || !environment) { res.status(400).json({ error: 'tenantId and environment are required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  const [updates, window, environments] = await Promise.all([
+    getEnvironmentUpdates(token, environment),
+    getUpdateWindow(token, environment).catch(() => null),
+    listEnvironments(token).catch(() => [] as { name: string; version?: string }[])
+  ]);
+  const current = environments.find(e => e.name.toLowerCase() === environment.toLowerCase());
+  res.json({ updates, window, currentVersion: current?.version ?? null });
+}));
+
+router.get('/timezones', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || s.tenants[0]?.id || '');
+  if (!tenantId) { res.status(400).json({ error: 'tenantId is required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  res.json(await getTimezones(token));
+}));
+
+router.put('/update-window', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const { tenantId, environment, preferredStartTime, preferredEndTime, timeZoneId } = req.body ?? {};
+  if (!tenantId || !environment || !preferredStartTime || !preferredEndTime || !timeZoneId) {
+    res.status(400).json({ error: 'tenantId, environment, preferredStartTime, preferredEndTime and timeZoneId are required' });
+    return;
+  }
+  const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!hhmm.test(String(preferredStartTime)) || !hhmm.test(String(preferredEndTime))) {
+    res.status(400).json({ error: 'Times must be in 24-hour HH:mm format' });
+    return;
+  }
+  const token = await getAccessToken(effectiveClientId(s.clientId), String(tenantId));
+  res.json(await setUpdateWindow(token, String(environment), {
+    preferredStartTime: String(preferredStartTime),
+    preferredEndTime: String(preferredEndTime),
+    timeZoneId: String(timeZoneId)
+  }));
+}));
+
+/** Select the target version (optionally with a date) for the next BC update. */
+router.post('/updates/select', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const { tenantId, environment, targetVersion } = req.body ?? {};
+  if (!tenantId || !environment || !targetVersion) {
+    res.status(400).json({ error: 'tenantId, environment and targetVersion are required' });
+    return;
+  }
+  const selectedDateTime = req.body.selectedDateTime ? new Date(String(req.body.selectedDateTime)) : undefined;
+  if (selectedDateTime && isNaN(selectedDateTime.getTime())) {
+    res.status(400).json({ error: 'selectedDateTime is not a valid date/time' });
+    return;
+  }
+  const token = await getAccessToken(effectiveClientId(s.clientId), String(tenantId));
+  const result = await selectTargetVersion(token, String(environment), String(targetVersion), {
+    selectedDateTime: selectedDateTime?.toISOString(),
+    ignoreUpdateWindow: req.body.ignoreUpdateWindow === true
+  });
+  res.json(result);
 }));
 
 // ── Environment management ───────────────────────────────────────────────
