@@ -5,7 +5,7 @@ import {
   MessageBar, MessageBarBody, Option, Spinner, Table, TableBody, TableCell,
   TableHeader, TableHeaderCell, TableRow, Text, Title2, Title3, tokens
 } from '@fluentui/react-components';
-import { ArrowUpload24Regular, Document24Regular, Play24Regular } from '@fluentui/react-icons';
+import { ArrowUpload24Regular, Delete24Regular, Document24Regular, Play24Regular } from '@fluentui/react-icons';
 import { api, subscribeRuns } from '../api';
 import { useSharedStyles } from '../theme';
 import { ContainerCapabilities, DeployRun, Settings, StagedApp, TargetStatus } from '../types';
@@ -94,10 +94,13 @@ export default function ContainerDeployPage() {
     setError('');
     setUploading(true);
     try {
+      const uploaded: string[] = [];
       for (const file of Array.from(files)) {
         if (!file.name.toLowerCase().endsWith('.app')) continue;
         await api.uploadApp(file);
+        uploaded.push(file.name);
       }
+      setSelectedApps(prev => new Set([...prev, ...uploaded]));
       await refresh();
     } catch (e: any) {
       setError(e.message);
@@ -173,6 +176,7 @@ export default function ContainerDeployPage() {
                 <TableHeaderCell>Publisher</TableHeaderCell>
                 <TableHeaderCell>Version</TableHeaderCell>
                 <TableHeaderCell>Size</TableHeaderCell>
+                <TableHeaderCell style={{ width: '60px' }} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -195,6 +199,20 @@ export default function ContainerDeployPage() {
                   <TableCell>{app.manifest?.publisher ?? '—'}</TableCell>
                   <TableCell>{app.manifest?.version ?? '—'}</TableCell>
                   <TableCell>{formatBytes(app.size)}</TableCell>
+                  <TableCell>
+                    <Button
+                      icon={<Delete24Regular />}
+                      appearance="subtle"
+                      title="Remove staged app"
+                      onClick={async () => {
+                        await api.delete(`/api/apps/${encodeURIComponent(app.fileName)}`);
+                        const next = new Set(selectedApps);
+                        next.delete(app.fileName);
+                        setSelectedApps(next);
+                        await refresh();
+                      }}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

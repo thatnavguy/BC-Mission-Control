@@ -84,6 +84,7 @@ export default function DeployPage() {
     setAuth(a);
     setApps(appList);
     setActiveRun(prev => prev ?? runs.find(r => r.status === 'running') ?? null);
+    return appList;
   }, []);
 
   useEffect(() => { refresh().catch(e => setError(e.message)); }, [refresh]);
@@ -99,14 +100,18 @@ export default function DeployPage() {
     setError('');
     setUploading(true);
     try {
+      const uploaded: string[] = [];
       for (const file of Array.from(files)) {
         if (!file.name.toLowerCase().endsWith('.app')) {
           setError(`Skipped ${file.name} — only .app files are allowed`);
           continue;
         }
         await api.uploadApp(file);
+        uploaded.push(file.name);
       }
-      await refresh();
+      const appList = await refresh();
+      const selectable = new Set((appList ?? []).filter(a => !a.manifestError).map(a => a.fileName));
+      setSelectedApps(prev => new Set([...prev, ...uploaded.filter(f => selectable.has(f))]));
     } catch (e: any) {
       setError(e.message);
     } finally {
