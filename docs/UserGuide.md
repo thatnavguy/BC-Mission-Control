@@ -10,9 +10,13 @@ local Docker containers from one place.
 
 BC Mission Control is a web page that runs on your own computer. It lets you:
 
+- Create, copy, and delete cloud environments.
 - Deploy apps (`.app` files) to cloud sandboxes and production environments.
 - See which app versions are installed in each environment.
+- Find and apply AppSource app updates.
+- Review the app operations history of an environment.
 - Compare versions across environments to spot differences.
+- Check database storage use against your tenant quota.
 - Call BC APIs directly from your browser.
 - Create local Docker containers and deploy apps to them.
 
@@ -69,6 +73,29 @@ Center.
 
 ## Cloud section
 
+### Environments
+
+Create, copy, and delete environments on a tenant.
+
+![Environments page](screenshots/environments.png)
+
+1. Pick a **Tenant** and click **Load environments**.
+2. You see every environment with its type, status, and version.
+
+From here you can:
+
+- **New environment** — enter a name, pick **Sandbox** or **Production**, and
+  choose a country. Provisioning takes a few minutes; progress shows on the
+  page.
+- **Copy** — make a sandbox copy of an active environment, including all its
+  data. Copying can take 15 minutes or more.
+- **Delete** — type the environment name to confirm. The environment is
+  soft-deleted: Microsoft keeps it for 14 days, and you can recover it from
+  the Admin Center during that time.
+
+Environment names must start with a letter and use only letters, numbers,
+dashes, and underscores (30 characters at most).
+
 ### PTE Deployment (cloud)
 
 Use this page to upload your own apps (PTEs — per-tenant extensions) to cloud
@@ -107,6 +134,24 @@ From the **Actions** column you can:
 - **Unpublish** an old PTE version.
 - **Apply update** when a newer AppSource version is available.
 
+### App Updates
+
+Find and install newer AppSource (Marketplace) app versions in an environment.
+
+![App Updates page](screenshots/app-updates.png)
+
+1. Pick a **Tenant** and **Environment**.
+2. Click **Check for updates**.
+3. Tick the apps to update. Apps that need other apps updated first show them
+   in the **Also required** column — dependencies are handled automatically.
+4. Choose:
+   - **Update now** — installs right away and shows live progress. Users may
+     be disconnected while an update installs.
+   - **Schedule in update window** — Microsoft installs during the
+     environment's maintenance window instead.
+
+When everything is up to date, the page says so.
+
 ### Compare Versions
 
 Check that the same apps are on the same version everywhere.
@@ -130,6 +175,37 @@ messages when something failed.
 1. Pick a **Tenant** and **Environment**.
 2. Click **Refresh**.
 3. Check the **Status** and **Error** columns for failures.
+
+### App Operations
+
+See the audit log of an environment: every app install, update, uninstall, and
+hotfix, with who triggered it and the error when something failed.
+
+![App Operations page](screenshots/app-operations.png)
+
+1. Pick a **Tenant** and **Environment**.
+2. Click **Load operations**.
+3. Use the filters:
+   - **Show** — *App operations* (installs and updates only) or
+     *All operations* (also environment copies, renames, and so on).
+   - **Period** — last 24 hours, 7 days, 30 days, or all time.
+
+Hover a shortened value to see it in full.
+
+### Storage
+
+Check database storage use against your tenant quota.
+
+![Storage page](screenshots/storage.png)
+
+1. Pick a **Tenant** and click **Load storage usage**.
+2. The top card shows total use, the allowance (base + licenses + add-ons),
+   and how many environments you have compared with your limits.
+3. The table lists each environment's database size and share of the quota.
+   Bars turn amber over 75% and red over 90%.
+
+If you are over quota, Microsoft blocks creating new environments until you
+free space or buy more capacity.
 
 ### API Explorer
 
@@ -197,8 +273,9 @@ limit once. The create form below pre-fills from these values.
 
 ## History
 
-Every run — cloud deploy, container deploy, container create — is saved here
-with its per-target results and full log.
+Every run — cloud deploy, app update, environment create/copy/delete,
+container deploy, container create — is saved here with its per-target results
+and full log.
 
 ![History page](screenshots/history.png)
 
@@ -215,6 +292,7 @@ through console windows.
 | A page asks you to sign in again | Your token expired. Go to **Setup** → **Re-authenticate**. |
 | "Load environments" fails | Check the Tenant ID is a valid GUID and your account has access to that tenant's Admin Center. |
 | Container pages show errors | Make sure Docker Desktop is running, `pwsh` is on your PATH, and BcContainerHelper is installed (`Install-Module BcContainerHelper`). |
+| Creating an environment fails with a storage error | You are over your storage quota. Check the **Storage** page, then free space or buy more capacity. |
 | A deploy failed | Open **History**, find the run, and read its log. For cloud deploys also check **Deployment Status** for the server's error message. |
 
 ---
