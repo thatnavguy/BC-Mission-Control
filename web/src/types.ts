@@ -54,13 +54,14 @@ export interface DeployTargetResult {
 
 export interface DeployRun {
   id: string;
-  kind: 'cloud' | 'container' | 'container-create';
+  kind: 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment';
   startedAt: string;
   finishedAt?: string;
   status: 'running' | 'completed' | 'completed-with-errors' | 'failed';
-  schedule: 'Immediate' | 'UpdateWindow';
-  schemaSync: 'Add' | 'Force';
-  acceptIsvEula: boolean;
+  /** PTE deploy runs only */
+  schedule?: 'Immediate' | 'UpdateWindow';
+  schemaSync?: 'Add' | 'Force';
+  acceptIsvEula?: boolean;
   results: DeployTargetResult[];
   log: string[];
 }
@@ -70,6 +71,27 @@ export interface EnvironmentInfo {
   type?: string;
   status?: string;
   version?: string;
+}
+
+export interface AppUpdateRequirement {
+  appId: string;
+  name: string;
+  publisher: string;
+  version: string;
+  type: string;
+}
+
+export interface AppUpdateInfo {
+  appId: string;
+  name: string;
+  publisher: string;
+  version: string;
+  requirements: AppUpdateRequirement[];
+}
+
+export interface AvailableCountry {
+  countryCode: string;
+  rings: { name: string; productionRing: boolean; friendlyName: string }[];
 }
 
 export interface AuthStatus {

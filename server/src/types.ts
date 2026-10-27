@@ -49,7 +49,7 @@ export interface StagedApp {
 export type ScheduleOption = 'Immediate' | 'UpdateWindow';
 export type SchemaSyncOption = 'Add' | 'Force';
 export type ContainerSyncMode = 'Add' | 'Clean' | 'Development';
-export type RunKind = 'cloud' | 'container' | 'container-create';
+export type RunKind = 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment';
 
 export type TargetStatus =
   | 'pending'
@@ -78,9 +78,10 @@ export interface DeployRun {
   startedAt: string;
   finishedAt?: string;
   status: RunStatus;
-  schedule: ScheduleOption;
-  schemaSync: SchemaSyncOption;
-  acceptIsvEula: boolean;
+  /** PTE deploy runs only */
+  schedule?: ScheduleOption;
+  schemaSync?: SchemaSyncOption;
+  acceptIsvEula?: boolean;
   results: DeployTargetResult[];
   log: string[];
 }

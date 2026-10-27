@@ -82,6 +82,215 @@ export async function schedulePteInstall(
   return text ? JSON.parse(text) : {};
 }
 
+// ── App updates (Admin Center API) ──────────────────────────────────────────
+
+export interface AppUpdateRequirement {
+  appId: string;
+  name: string;
+  publisher: string;
+  version: string;
+  type: string;
+}
+
+export interface AppUpdateInfo {
+  appId: string;
+  name: string;
+  publisher: string;
+  version: string;
+  requirements: AppUpdateRequirement[];
+}
+
+/** Global (AppSource) apps installed on the environment that have a newer version available. */
+export async function getAvailableAppUpdates(token: string, environment: string): Promise<AppUpdateInfo[]> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps/availableUpdates`,
+    token
+  );
+  return (resp.value ?? []).map((u: any) => ({
+    appId: u.appId,
+    name: u.name,
+    publisher: u.publisher,
+    version: u.version,
+    requirements: (u.requirements ?? []).map((r: any) => ({
+      appId: r.appId,
+      name: r.name,
+      publisher: r.publisher,
+      version: r.version,
+      type: r.type
+    }))
+  }));
+}
+
+export interface AppOperation {
+  id: string;
+  type?: string;
+  status?: string;
+  sourceAppVersion?: string;
+  targetAppVersion?: string;
+  createdOn?: string;
+  startedOn?: string;
+  completedOn?: string;
+  errorMessage?: string;
+}
+
+/** Trigger an update of a global app. Dependencies are installed/updated automatically. */
+export async function updateApp(
+  token: string,
+  environment: string,
+  appId: string,
+  targetVersion: string,
+  useEnvironmentUpdateWindow: boolean
+): Promise<AppOperation> {
+  return request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps/${encodeURIComponent(appId)}/update`,
+    token,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetVersion,
+        useEnvironmentUpdateWindow,
+        installOrUpdateNeededDependencies: true
+      })
+    }
+  );
+}
+
+export async function getAppOperation(
+  token: string,
+  environment: string,
+  appId: string,
+  operationId: string
+): Promise<AppOperation | undefined> {
+  const resp = await request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps/${encodeURIComponent(appId)}/operations/${encodeURIComponent(operationId)}`,
+    token
+  );
+  const op = Array.isArray(resp?.value) ? resp.value[0] : resp;
+  return op?.id ? op : undefined;
+}
+
+// ── Environment lifecycle (Admin Center API) ─────────────────────────────────
+
+export interface EnvironmentOperation {
+  id: string;
+  type?: string;
+  status?: string;
+  createdOn?: string;
+  startedOn?: string;
+  completedOn?: string;
+  errorMessage?: string;
+  environmentName?: string;
+  environmentType?: string;
+}
+
+export async function createEnvironment(
+  token: string,
+  name: string,
+  environmentType: 'Production' | 'Sandbox',
+  countryCode: string,
+  ringName?: string
+): Promise<EnvironmentOperation> {
+  return request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(name)}`,
+    token,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        environmentType,
+        countryCode,
+        ...(ringName ? { ringName } : {})
+      })
+    }
+  );
+}
+
+export async function copyEnvironment(
+  token: string,
+  sourceEnvironment: string,
+  newName: string,
+  type: 'Production' | 'Sandbox' = 'Sandbox'
+): Promise<EnvironmentOperation> {
+  return request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(sourceEnvironment)}/copy`,
+    token,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ environmentName: newName, type })
+    }
+  );
+}
+
+/** Soft-deletes the environment (recoverable for 14 days). */
+export async function deleteEnvironment(token: string, environment: string): Promise<EnvironmentOperation> {
+  return request(
+    `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}`,
+    token,
+    { method: 'DELETE' }
+  );
+}
+
+/**
+ * Look up a single environment operation. Returns undefined when the
+ * environment cannot be queried yet (still provisioning) or is already gone
+ * (deleted) — callers should keep polling in both cases.
+ */
+export async function getEnvironmentOperation(
+  token: string,
+  environment: string,
+  operationId: string
+): Promise<EnvironmentOperation | undefined> {
+  try {
+    const resp = await request(
+      `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/operations`,
+      token
+    );
+    const ops: EnvironmentOperation[] = resp.value ?? [];
+    return ops.find(o => o.id === operationId);
+  } catch {
+    return undefined;
+  }
+}
+
+export interface AvailableCountry {
+  countryCode: string;
+  rings: { name: string; productionRing: boolean; friendlyName: string }[];
+}
+
+// The /applications endpoint takes ~30s to respond and its data changes
+// rarely, so cache per tenant for a day.
+const countriesCache = new Map<string, { at: number; data: AvailableCountry[] }>();
+const COUNTRIES_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Countries/regions (and rings) where new environments can be created. */
+export async function getAvailableCountries(token: string, cacheKey?: string): Promise<AvailableCountry[]> {
+  const key = cacheKey ?? 'default';
+  const hit = countriesCache.get(key);
+  if (hit && Date.now() - hit.at < COUNTRIES_TTL_MS) return hit.data;
+
+  const resp = await request(`${ADMIN_API}/applications`, token);
+  const families: any[] = resp.value ?? [];
+  const family = families.find(a => a.applicationFamily === 'BusinessCentral') ?? families[0];
+  // The API returns "countriesRingDetails" (capital R); docs show it lowercase.
+  const details = family?.countriesRingDetails ?? family?.countriesringDetails ?? [];
+  const list = Array.isArray(details) ? details : [details];
+  const data = list
+    .map((c: any) => ({
+      countryCode: c.countryCode,
+      rings: (c.rings ?? []).map((r: any) => ({
+        name: r.name,
+        productionRing: !!r.productionRing,
+        friendlyName: r.friendlyName ?? r.name
+      }))
+    }))
+    .filter((c: AvailableCountry) => !!c.countryCode)
+    .sort((a: AvailableCountry, b: AvailableCountry) => a.countryCode.localeCompare(b.countryCode));
+  countriesCache.set(key, { at: Date.now(), data });
+  return data;
+}
+
 // ── Automation API (per environment) ─────────────────────────────────────────
 
 function automationUrl(tenantId: string, environment: string): string {

@@ -7,9 +7,10 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, invokeExtensionAction, listEnvironments } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, invokeExtensionAction, listEnvironments } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, DeployRequest } from './deploy';
+import { startAppUpdateRun, startEnvironmentRun } from './ops';
 import { parseAppManifest } from './appManifest';
 import { StagedApp, TenantConfig, ContainerConfig } from './types';
 import {
@@ -176,6 +177,52 @@ router.post('/extensions/:action(install|unpublish)', asyncWrap(async (req, res)
   if (companies.length === 0) { res.status(404).json({ error: 'No companies in environment' }); return; }
   await invokeExtensionAction(token, String(tenantId), String(environment), companies[0].id, String(packageId), req.params.action as 'install' | 'unpublish');
   res.json({ ok: true });
+}));
+
+// ── App updates ──────────────────────────────────────────────────────────
+
+router.get('/app-updates', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  const environment = String(req.query.environment || '');
+  if (!tenantId || !environment) { res.status(400).json({ error: 'tenantId and environment are required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  res.json(await getAvailableAppUpdates(token, environment));
+}));
+
+router.post('/app-updates/run', asyncWrap(async (req, res) => {
+  const body = req.body ?? {};
+  const run = await startAppUpdateRun({
+    tenantId: String(body.tenantId ?? ''),
+    environment: String(body.environment ?? ''),
+    apps: Array.isArray(body.apps) ? body.apps : [],
+    useEnvironmentUpdateWindow: body.useEnvironmentUpdateWindow === true
+  });
+  res.status(201).json(run);
+}));
+
+// ── Environment management ───────────────────────────────────────────────
+
+router.get('/available-countries', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || s.tenants[0]?.id || '');
+  if (!tenantId) { res.status(400).json({ error: 'tenantId is required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  res.json(await getAvailableCountries(token, tenantId));
+}));
+
+router.post('/environments/:action(create|copy|delete)', asyncWrap(async (req, res) => {
+  const body = req.body ?? {};
+  const run = await startEnvironmentRun({
+    tenantId: String(body.tenantId ?? ''),
+    action: req.params.action as 'create' | 'copy' | 'delete',
+    environment: String(body.environment ?? ''),
+    sourceEnvironment: body.sourceEnvironment ? String(body.sourceEnvironment) : undefined,
+    environmentType: body.environmentType === 'Production' ? 'Production' : 'Sandbox',
+    countryCode: body.countryCode ? String(body.countryCode) : undefined,
+    ringName: body.ringName ? String(body.ringName) : undefined
+  });
+  res.status(201).json(run);
 }));
 
 router.get('/compare', asyncWrap(async (req, res) => {

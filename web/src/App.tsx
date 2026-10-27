@@ -5,7 +5,7 @@ import {
 import {
   ArrowUpload24Regular, Settings24Regular, History24Regular,
   AppsList24Regular, Grid24Regular, PlugConnected24Regular, Pulse24Regular,
-  Cube24Regular, Rocket24Regular
+  Cube24Regular, Rocket24Regular, Globe24Regular, ArrowClockwise24Regular
 } from '@fluentui/react-icons';
 import { fox } from './theme';
 import DeployPage from './pages/DeployPage';
@@ -17,6 +17,8 @@ import StatusPage from './pages/StatusPage';
 import ApiExplorerPage from './pages/ApiExplorerPage';
 import ContainersPage from './pages/ContainersPage';
 import ContainerDeployPage from './pages/ContainerDeployPage';
+import EnvironmentsPage from './pages/EnvironmentsPage';
+import UpdatesPage from './pages/UpdatesPage';
 
 const useStyles = makeStyles({
   shell: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ffffff' },
@@ -77,9 +79,9 @@ const useStyles = makeStyles({
   }
 });
 
-type PageKey = 'deploy' | 'apps' | 'compare' | 'status' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
+type PageKey = 'environments' | 'deploy' | 'apps' | 'updates' | 'compare' | 'status' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
 
-const PAGE_KEYS = ['deploy', 'apps', 'compare', 'status', 'api', 'cdeploy', 'containers', 'history', 'setup'];
+const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'compare', 'status', 'api', 'cdeploy', 'containers', 'history', 'setup'];
 
 export default function App() {
   const styles = useStyles();
@@ -116,8 +118,10 @@ export default function App() {
           size="large"
         >
           <div className={styles.section}>Cloud</div>
+          <Tab value="environments" icon={<Globe24Regular />}>Environments</Tab>
           <Tab value="deploy" icon={<ArrowUpload24Regular />}>PTE Deployment</Tab>
           <Tab value="apps" icon={<AppsList24Regular />}>Apps</Tab>
+          <Tab value="updates" icon={<ArrowClockwise24Regular />}>App Updates</Tab>
           <Tab value="compare" icon={<Grid24Regular />}>Compare Versions</Tab>
           <Tab value="status" icon={<Pulse24Regular />}>Deployment Status</Tab>
           <Tab value="api" icon={<PlugConnected24Regular />}>API Explorer</Tab>
@@ -131,8 +135,10 @@ export default function App() {
       </nav>
       <main className={styles.content} key={page}>
         <div className="page-enter">
+          {page === 'environments' && <EnvironmentsPage />}
           {page === 'deploy' && <DeployPage />}
           {page === 'apps' && <AppsPage />}
+          {page === 'updates' && <UpdatesPage />}
           {page === 'compare' && <ComparePage />}
           {page === 'status' && <StatusPage />}
           {page === 'api' && <ApiExplorerPage />}

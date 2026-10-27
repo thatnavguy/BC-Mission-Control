@@ -30,6 +30,8 @@ function runBadge(run: DeployRun) {
 function kindBadge(kind: DeployRun['kind']) {
   if (kind === 'container') return <Badge appearance="outline" color="informative">Container</Badge>;
   if (kind === 'container-create') return <Badge appearance="outline" color="informative">Create</Badge>;
+  if (kind === 'app-update') return <Badge appearance="outline" color="important">App update</Badge>;
+  if (kind === 'environment') return <Badge appearance="outline" color="important">Environment</Badge>;
   return <Badge appearance="outline" color="brand">Cloud</Badge>;
 }
 
@@ -58,7 +60,7 @@ export default function HistoryPage() {
     <div className={styles.stack}>
       <Title2>Deployment History</Title2>
       <Text size={300} className={shared.pageDesc}>
-        Every run — cloud deploy, container deploy, container create — with results and full logs.
+        Every run — deploys, app updates, environment operations, container work — with results and full logs.
       </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
       {runs.length === 0 && (
