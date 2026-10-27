@@ -7,7 +7,7 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, invokeExtensionAction, listEnvironments } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getStorageQuotas, getUsedStorage, invokeExtensionAction, listEnvironments } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, DeployRequest } from './deploy';
 import { startAppUpdateRun, startEnvironmentRun } from './ops';
@@ -199,6 +199,17 @@ router.post('/app-updates/run', asyncWrap(async (req, res) => {
     useEnvironmentUpdateWindow: body.useEnvironmentUpdateWindow === true
   });
   res.status(201).json(run);
+}));
+
+// ── Storage usage ────────────────────────────────────────────────────────────
+
+router.get('/storage', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || s.tenants[0]?.id || '');
+  if (!tenantId) { res.status(400).json({ error: 'tenantId is required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  const [usage, quotas] = await Promise.all([getUsedStorage(token), getStorageQuotas(token)]);
+  res.json({ usage, quotas });
 }));
 
 // ── Environment management ───────────────────────────────────────────────

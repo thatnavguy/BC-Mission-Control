@@ -94,6 +94,24 @@ export interface AvailableCountry {
   rings: { name: string; productionRing: boolean; friendlyName: string }[];
 }
 
+export interface EnvironmentStorageUsage {
+  environmentName: string;
+  environmentType: string;
+  /** Used database storage in KB; -1 when the service failed to measure it. */
+  databaseStorageInKilobytes: number;
+}
+
+export interface StorageQuotas {
+  productionEnvironments: number;
+  sandboxEnvironments: number;
+  storage: { default: number; userLicenses: number; additionalCapacity: number; total: number };
+}
+
+export interface StorageResponse {
+  usage: EnvironmentStorageUsage[];
+  quotas: StorageQuotas;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   savedAt?: string;

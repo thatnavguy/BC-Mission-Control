@@ -170,6 +170,44 @@ export async function getAppOperation(
   return op?.id ? op : undefined;
 }
 
+// ── Storage usage (Admin Center API) ─────────────────────────────────────────
+
+export interface EnvironmentStorageUsage {
+  environmentName: string;
+  environmentType: string;
+  /** Used database storage in KB; -1 when the service failed to measure it. */
+  databaseStorageInKilobytes: number;
+}
+
+export async function getUsedStorage(token: string): Promise<EnvironmentStorageUsage[]> {
+  const resp = await request(`${ADMIN_API}/environments/usedstorage`, token);
+  return (resp.value ?? []).map((e: any) => ({
+    environmentName: e.environmentName,
+    environmentType: e.environmentType,
+    databaseStorageInKilobytes: Number(e.databaseStorageInKilobytes ?? -1)
+  }));
+}
+
+export interface StorageQuotas {
+  productionEnvironments: number;
+  sandboxEnvironments: number;
+  storage: { default: number; userLicenses: number; additionalCapacity: number; total: number };
+}
+
+export async function getStorageQuotas(token: string): Promise<StorageQuotas> {
+  const resp = await request(`${ADMIN_API}/environments/quotas`, token);
+  return {
+    productionEnvironments: Number(resp.environmentsCount?.production ?? 0),
+    sandboxEnvironments: Number(resp.environmentsCount?.sandbox ?? 0),
+    storage: {
+      default: Number(resp.storageInKilobytes?.default ?? 0),
+      userLicenses: Number(resp.storageInKilobytes?.userLicenses ?? 0),
+      additionalCapacity: Number(resp.storageInKilobytes?.additionalCapacity ?? 0),
+      total: Number(resp.storageInKilobytes?.total ?? 0)
+    }
+  };
+}
+
 // ── Environment lifecycle (Admin Center API) ─────────────────────────────────
 
 export interface EnvironmentOperation {
