@@ -1,5 +1,7 @@
 # BC Mission Control
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 ![Mission Control](web/public/MissionControl.jpg)
 
 A fast, local web UI for managing Business Central — cloud (SaaS) tenants and
@@ -7,6 +9,8 @@ local Docker containers from one place. The Node backend talks to the Business
 Central Admin Center and Automation APIs directly; no scripts to run by hand.
 
 Built by [Teddy Herryanto](https://thatnavguy.com).
+
+![BC Mission Control — Environments page](docs/screenshots/environments.png)
 
 **New here? Read the [User Guide](docs/UserGuide.md)** — step-by-step
 instructions with screenshots for every page.
@@ -87,7 +91,7 @@ Data (settings, token, uploaded apps) lives in `server/data/` — keep it privat
 - Container section additionally needs: Docker Desktop, PowerShell 7 (`pwsh`),
   and `Install-Module BcContainerHelper`.
 
-## Run
+## Getting Started
 
 1. Get the code:
 
@@ -102,10 +106,18 @@ Data (settings, token, uploaded apps) lives in `server/data/` — keep it privat
    on first run, starts the server, and opens http://127.0.0.1:4321 in your browser.
    Keep the console window open while using the app.
 
+3. In the app, open **Setup** and click **Sign in with device code**
+   (optionally paste your own Client ID first).
+
+4. Add a tenant (name + tenant ID), click **Load environments**, tick the
+   environments you work with. Soft-deleted environments are hidden.
+
+5. Go to **PTE Deployment**, drop your `.app` files, pick targets, deploy.
+
 For a desktop shortcut, run `Create-DesktopShortcut.ps1` once
 (right-click → Run with PowerShell).
 
-From a terminal instead:
+Prefer the terminal? Use these instead of `Start-MissionControl.bat`:
 
 ```powershell
 npm run setup     # first time: install dependencies
@@ -118,14 +130,6 @@ Development mode (hot reload):
 npm run dev:server   # terminal 1 — API on 4321
 npm run dev:web      # terminal 2 — UI on 5173 (proxies /api to 4321)
 ```
-
-## First-time setup in the UI
-
-1. Open **Setup** and click **Sign in with device code**
-   (optionally paste your own Client ID first).
-2. Add a tenant (name + tenant ID), click **Load environments**, tick the
-   environments you work with. Soft-deleted environments are hidden.
-3. Go to **PTE Deployment**, drop your `.app` files, pick targets, deploy.
 
 ## License
 
