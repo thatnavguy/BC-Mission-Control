@@ -85,6 +85,7 @@ export interface DeployRun {
   delayMinutes?: number;
   /** Set while status is 'waiting' — when the delayed run will start */
   scheduledStartAt?: string;
+  deleteAfterDeploy?: boolean;
   results: DeployTargetResult[];
   log: string[];
 }

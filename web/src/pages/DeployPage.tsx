@@ -66,6 +66,7 @@ export default function DeployPage() {
   const [schedule, setSchedule] = useState<'Immediate' | 'UpdateWindow'>('Immediate');
   const [schemaSync, setSchemaSync] = useState<'Add' | 'Force'>('Add');
   const [delay, setDelay] = useState(0);
+  const [deleteAfter, setDeleteAfter] = useState(false);
   const [acceptEula, setAcceptEula] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -94,8 +95,12 @@ export default function DeployPage() {
   useEffect(() => {
     return subscribeRuns(run => {
       setActiveRun(prev => (prev && prev.id === run.id ? { ...run } : prev ?? (run.status === 'running' || run.status === 'waiting' ? { ...run } : null)));
+      // Staged apps may have been deleted server-side when the run finished
+      if (run.deleteAfterDeploy && (run.status === 'completed' || run.status === 'completed-with-errors')) {
+        refresh().catch(() => undefined);
+      }
     });
-  }, []);
+  }, [refresh]);
 
   const uploadFiles = async (files: FileList | File[]) => {
     setError('');
@@ -141,7 +146,8 @@ export default function DeployPage() {
         schedule,
         schemaSync,
         acceptIsvEula: acceptEula,
-        delayMinutes: delay
+        delayMinutes: delay,
+        deleteAfterDeploy: deleteAfter
       });
       setActiveRun(run);
       setConfirming(false);
@@ -346,6 +352,13 @@ export default function DeployPage() {
               onChange={(_e, d) => setAcceptEula(d.checked === true)}
             />
           )}
+        </div>
+        <div className={styles.row} style={{ marginTop: '12px' }}>
+          <Checkbox
+            label="Delete staged app(s) after successful deployment"
+            checked={deleteAfter}
+            onChange={(_e, d) => setDeleteAfter(d.checked === true)}
+          />
         </div>
         <div className={styles.row} style={{ marginTop: '20px' }}>
           <Button

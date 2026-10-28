@@ -107,6 +107,8 @@ export interface ContainerDeployRequest {
   containerNames: string[];
   appFiles: string[];
   syncMode: ContainerSyncMode;
+  /** Delete staged .app files that deployed successfully to all containers. */
+  deleteAfterDeploy?: boolean;
 }
 
 export async function startContainerDeployRun(req: ContainerDeployRequest): Promise<DeployRun> {
@@ -137,6 +139,7 @@ export async function startContainerDeployRun(req: ContainerDeployRequest): Prom
     schedule: 'Immediate',
     schemaSync: 'Add',
     acceptIsvEula: false,
+    deleteAfterDeploy: req.deleteAfterDeploy === true,
     results: [],
     log: []
   };
@@ -212,6 +215,18 @@ foreach ($u in $units) {
     run.status = failed > 0 ? 'completed-with-errors' : 'completed';
     run.finishedAt = new Date().toISOString();
     logLine(run, `Run finished — ${run.results.length - failed}/${run.results.length} succeeded (exit code ${code})`);
+    if (req.deleteAfterDeploy) {
+      for (const app of orderedApps) {
+        const appFailed = run.results.some(r => r.appFile === app.fileName && r.status === 'failed');
+        if (appFailed) continue;
+        try {
+          fs.unlinkSync(app.absPath);
+          logLine(run, `Deleted staged app ${app.fileName}`);
+        } catch (err: any) {
+          logLine(run, `Could not delete staged app ${app.fileName}: ${err.message}`);
+        }
+      }
+    }
     fs.unlink(unitsPath, () => undefined);
     fs.unlink(scriptPath, () => undefined);
   });

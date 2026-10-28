@@ -466,7 +466,8 @@ router.post('/containers/deploy', asyncWrap(async (req, res) => {
   const run = await startContainerDeployRun({
     containerNames: Array.isArray(body.containerNames) ? body.containerNames : [],
     appFiles: Array.isArray(body.appFiles) ? body.appFiles : [],
-    syncMode: ['Add', 'Clean', 'Development'].includes(body.syncMode) ? body.syncMode : 'Development'
+    syncMode: ['Add', 'Clean', 'Development'].includes(body.syncMode) ? body.syncMode : 'Development',
+    deleteAfterDeploy: body.deleteAfterDeploy === true
   });
   res.status(201).json(run);
 }));
@@ -504,7 +505,8 @@ router.post('/deploy', asyncWrap(async (req, res) => {
     schedule: body.schedule === 'UpdateWindow' ? 'UpdateWindow' : 'Immediate',
     schemaSync: body.schemaSync === 'Force' ? 'Force' : 'Add',
     acceptIsvEula: body.acceptIsvEula === true,
-    delayMinutes: typeof body.delayMinutes === 'number' ? body.delayMinutes : 0
+    delayMinutes: typeof body.delayMinutes === 'number' ? body.delayMinutes : 0,
+    deleteAfterDeploy: body.deleteAfterDeploy === true
   });
   res.status(201).json(run);
 }));

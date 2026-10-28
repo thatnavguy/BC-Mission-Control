@@ -61,6 +61,7 @@ export default function ContainerDeployPage() {
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set());
   const [selectedContainers, setSelectedContainers] = useState<Set<string>>(new Set());
   const [syncMode, setSyncMode] = useState<'Development' | 'Add' | 'Clean'>('Development');
+  const [deleteAfter, setDeleteAfter] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -87,8 +88,12 @@ export default function ContainerDeployPage() {
     return subscribeRuns(run => {
       if (run.kind !== 'container') return;
       setActiveRun(prev => (prev && prev.id === run.id ? { ...run } : prev ?? (run.status === 'running' ? { ...run } : null)));
+      // Staged apps may have been deleted server-side when the run finished
+      if (run.deleteAfterDeploy && (run.status === 'completed' || run.status === 'completed-with-errors')) {
+        refresh().catch(() => undefined);
+      }
     });
-  }, []);
+  }, [refresh]);
 
   const uploadFiles = async (files: FileList | File[]) => {
     setError('');
@@ -115,7 +120,8 @@ export default function ContainerDeployPage() {
       const run = await api.post<DeployRun>('/api/containers/deploy', {
         appFiles: [...selectedApps],
         containerNames: [...selectedContainers],
-        syncMode
+        syncMode,
+        deleteAfterDeploy: deleteAfter
       });
       setActiveRun(run);
       setConfirming(false);
@@ -257,6 +263,13 @@ export default function ContainerDeployPage() {
               <Option value="Clean">Clean</Option>
             </Dropdown>
           </Field>
+        </div>
+        <div className={styles.row} style={{ marginTop: '12px' }}>
+          <Checkbox
+            label="Delete staged app(s) after successful deployment"
+            checked={deleteAfter}
+            onChange={(_e, d) => setDeleteAfter(d.checked === true)}
+          />
         </div>
         <div className={styles.row} style={{ marginTop: '20px' }}>
           <Button

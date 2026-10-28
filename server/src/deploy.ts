@@ -71,6 +71,8 @@ export interface DeployRequest {
   acceptIsvEula: boolean;
   /** Minutes to wait before the run starts executing (0 = start now). */
   delayMinutes?: number;
+  /** Delete staged .app files that deployed successfully to all targets. */
+  deleteAfterDeploy?: boolean;
 }
 
 export async function startDeployRun(req: DeployRequest): Promise<DeployRun> {
@@ -118,6 +120,7 @@ export async function startDeployRun(req: DeployRequest): Promise<DeployRun> {
     schedule: req.schedule,
     schemaSync: req.schemaSync,
     acceptIsvEula: req.acceptIsvEula,
+    deleteAfterDeploy: req.deleteAfterDeploy === true,
     results: [],
     log: []
   };
@@ -275,6 +278,19 @@ async function executeRun(
   run.status = failed > 0 ? 'completed-with-errors' : 'completed';
   run.finishedAt = new Date().toISOString();
   run.log.push(`[${run.finishedAt}] Run finished — ${run.results.length - failed}/${run.results.length} target(s) OK`);
+
+  if (req.deleteAfterDeploy) {
+    for (const app of orderedApps) {
+      const appFailed = run.results.some(r => r.appFile === app.fileName && r.status === 'failed');
+      if (appFailed) continue;
+      try {
+        fs.unlinkSync(app.absPath);
+        run.log.push(`[${new Date().toISOString()}] Deleted staged app ${app.fileName}`);
+      } catch (err: any) {
+        run.log.push(`[${new Date().toISOString()}] Could not delete staged app ${app.fileName}: ${err.message}`);
+      }
+    }
+  }
   emit(run);
 }
 
