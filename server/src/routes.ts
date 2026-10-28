@@ -10,6 +10,7 @@ import {
 import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, cancelRun, DeployRequest } from './deploy';
+import { loadCallHistory, recordCall, clearCallHistory } from './callHistory';
 import { startAppUpdateRun, startEnvironmentRun } from './ops';
 import { parseAppManifest } from './appManifest';
 import { StagedApp, TenantConfig, ContainerConfig } from './types';
@@ -392,25 +393,57 @@ router.post('/call', asyncWrap(async (req, res) => {
 
   const token = await getAccessToken(effectiveClientId(s.clientId), String(tenantId));
 
-  const resp = await fetch(url, {
-    method: m,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-      ...(body !== undefined && body !== null && body !== '' ? { 'Content-Type': 'application/json' } : {})
-    },
-    body: m === 'GET' || m === 'DELETE' || body === undefined || body === null || body === ''
-      ? undefined
-      : typeof body === 'string' ? body : JSON.stringify(body)
-  });
-  const text = await resp.text();
-  res.status(resp.status).json({
-    status: resp.status,
-    url,
-    contentType: resp.headers.get('content-type'),
-    body: text
-  });
+  try {
+    const resp = await fetch(url, {
+      method: m,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        ...(body !== undefined && body !== null && body !== '' ? { 'Content-Type': 'application/json' } : {})
+      },
+      body: m === 'GET' || m === 'DELETE' || body === undefined || body === null || body === ''
+        ? undefined
+        : typeof body === 'string' ? body : JSON.stringify(body)
+    });
+    const text = await resp.text();
+    recordCall({
+      tenantId: String(tenantId),
+      environment: String(environment),
+      method: m,
+      path: p,
+      url,
+      status: resp.status,
+      requestBody: body !== undefined && body !== null && body !== '' ? String(body) : undefined,
+      responseBody: text
+    });
+    res.status(resp.status).json({
+      status: resp.status,
+      url,
+      contentType: resp.headers.get('content-type'),
+      body: text
+    });
+  } catch (err: any) {
+    recordCall({
+      tenantId: String(tenantId),
+      environment: String(environment),
+      method: m,
+      path: p,
+      url,
+      error: err.message,
+      requestBody: body !== undefined && body !== null && body !== '' ? String(body) : undefined
+    });
+    throw err;
+  }
 }));
+
+router.get('/call/history', (_req, res) => {
+  res.json(loadCallHistory());
+});
+
+router.delete('/call/history', (_req, res) => {
+  clearCallHistory();
+  res.json({ ok: true });
+});
 
 // ── Containers ─────────────────────────────────────────────────────────────
 

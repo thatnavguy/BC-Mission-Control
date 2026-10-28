@@ -69,6 +69,22 @@ export interface DeployRun {
   log: string[];
 }
 
+export interface ApiCallHistoryEntry {
+  id: string;
+  timestamp: string;
+  tenantId: string;
+  environment: string;
+  method: string;
+  /** Path as entered in the API Explorer */
+  path: string;
+  url: string;
+  /** HTTP status; undefined when the call itself failed (e.g. auth error) */
+  status?: number;
+  error?: string;
+  requestBody?: string;
+  responseBody?: string;
+}
+
 export interface EnvironmentInfo {
   name: string;
   type?: string;

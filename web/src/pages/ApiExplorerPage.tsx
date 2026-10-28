@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Badge, Button, Card, Dropdown, Field, Input, makeStyles, MessageBar,
-  MessageBarBody, Option, Spinner, Textarea, Title2, tokens, Text
+  MessageBarBody, Option, Spinner, Table, TableBody, TableCell, TableHeader,
+  TableHeaderCell, TableRow, Textarea, Title2, Title3, tokens, Text
 } from '@fluentui/react-components';
-import { Play24Regular } from '@fluentui/react-icons';
+import { Delete24Regular, Play24Regular } from '@fluentui/react-icons';
 import { api } from '../api';
 import { useSharedStyles } from '../theme';
-import { Settings } from '../types';
+import { ApiCallHistoryEntry, Settings } from '../types';
 import TargetPicker, { TargetSelection } from '../components/TargetPicker';
 
 const useStyles = makeStyles({
@@ -40,6 +41,12 @@ export default function ApiExplorerPage() {
   const [result, setResult] = useState<CallResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [history, setHistory] = useState<ApiCallHistoryEntry[]>([]);
+  const [selected, setSelected] = useState<ApiCallHistoryEntry | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    try { setHistory(await api.get<ApiCallHistoryEntry[]>('/api/call/history')); } catch { /* non-fatal */ }
+  }, []);
 
   useEffect(() => {
     api.get<Settings>('/api/settings').then(s => {
@@ -53,7 +60,8 @@ export default function ApiExplorerPage() {
         });
       }
     }).catch(e => setError(e.message));
-  }, []);
+    loadHistory();
+  }, [loadHistory]);
 
   const execute = async () => {
     if (!target || !path.trim()) return;
@@ -76,17 +84,17 @@ export default function ApiExplorerPage() {
       const json = await resp.json();
       if (!resp.ok && !json.url) throw new Error(json.error || `HTTP ${resp.status}`);
       setResult(json);
+      setSelected(null);
+      loadHistory();
     } catch (e: any) {
       setError(e.message);
+      loadHistory();
     } finally {
       setLoading(false);
     }
   };
 
-  const prettyBody = (() => {
-    if (!result?.body) return '';
-    try { return JSON.stringify(JSON.parse(result.body), null, 2); } catch { return result.body; }
-  })();
+  const prettyBody = pretty(result?.body);
 
   if (!settings) return <Spinner label="Loading..." />;
 
@@ -168,6 +176,82 @@ export default function ApiExplorerPage() {
           <div className={styles.response}>{prettyBody || '(empty response)'}</div>
         </Card>
       )}
+
+      {history.length > 0 && (
+        <Card className={shared.card}>
+          <div className={styles.row} style={{ justifyContent: 'space-between' }}>
+            <Title3>History (last {history.length} call{history.length === 1 ? '' : 's'})</Title3>
+            <Button
+              icon={<Delete24Regular />}
+              appearance="subtle"
+              onClick={async () => {
+                await api.delete('/api/call/history');
+                setHistory([]);
+                setSelected(null);
+              }}
+            >
+              Clear
+            </Button>
+          </div>
+          <Table size="small" style={{ marginTop: '12px', tableLayout: 'fixed', width: '100%' }}>
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell style={{ width: '180px' }}>Time</TableHeaderCell>
+                <TableHeaderCell style={{ width: '80px' }}>Method</TableHeaderCell>
+                <TableHeaderCell>Path</TableHeaderCell>
+                <TableHeaderCell style={{ width: '140px' }}>Environment</TableHeaderCell>
+                <TableHeaderCell style={{ width: '100px' }}>Status</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.map(h => (
+                <TableRow
+                  key={h.id}
+                  onClick={() => setSelected(selected?.id === h.id ? null : h)}
+                  style={{ cursor: 'pointer', backgroundColor: selected?.id === h.id ? tokens.colorNeutralBackground1Selected : undefined }}
+                >
+                  <TableCell>{new Date(h.timestamp).toLocaleString()}</TableCell>
+                  <TableCell><Text style={{ fontFamily: 'monospace' }}>{h.method}</Text></TableCell>
+                  <TableCell>
+                    <Text style={{ fontFamily: 'monospace', wordBreak: 'break-all' }} title={h.path}>{h.path}</Text>
+                  </TableCell>
+                  <TableCell>{h.environment}</TableCell>
+                  <TableCell>{historyStatusBadge(h)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {selected && (
+            <div style={{ marginTop: '12px' }}>
+              <Text block size={200} style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{selected.url}</Text>
+              {selected.error && (
+                <MessageBar intent="error" style={{ marginTop: '8px' }}>
+                  <MessageBarBody>{selected.error}</MessageBarBody>
+                </MessageBar>
+              )}
+              {selected.requestBody && (
+                <>
+                  <Text block weight="semibold" size={200} style={{ marginTop: '8px' }}>Request body</Text>
+                  <div className={styles.response}>{pretty(selected.requestBody)}</div>
+                </>
+              )}
+              <Text block weight="semibold" size={200} style={{ marginTop: '8px' }}>Response</Text>
+              <div className={styles.response}>{pretty(selected.responseBody) || '(empty response)'}</div>
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
+}
+
+function pretty(body?: string): string {
+  if (!body) return '';
+  try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; }
+}
+
+function historyStatusBadge(h: ApiCallHistoryEntry) {
+  if (h.status === undefined) return <Badge appearance="filled" color="danger">Error</Badge>;
+  const color = h.status < 300 ? 'success' : h.status < 500 ? 'warning' : 'danger';
+  return <Badge appearance="filled" color={color as any}>HTTP {h.status}</Badge>;
 }
