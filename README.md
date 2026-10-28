@@ -86,7 +86,8 @@ Data (settings, token, uploaded apps) lives in `server/data/` — keep it privat
 
 ## Prerequisites
 
-- Node.js 18+
+- [Node.js](https://nodejs.org/en/download) 18 or later. Choose the **LTS
+  (Long Term Support)** version. The installer includes npm.
 - That's it for cloud. A custom Entra ID app registration is **optional**.
 - Container section additionally needs: Docker Desktop, PowerShell 7 (`pwsh`),
   and `Install-Module BcContainerHelper`.
