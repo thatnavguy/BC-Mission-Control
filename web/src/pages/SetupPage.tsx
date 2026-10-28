@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Accordion, AccordionHeader, AccordionItem, AccordionPanel,
   Badge, Button, Card, Checkbox, Dialog, DialogActions, DialogBody,
   DialogContent, DialogSurface, DialogTitle, Field, Input, makeStyles,
   MessageBar, MessageBarBody, Spinner, Table, TableBody, TableCell,
@@ -163,19 +164,11 @@ export default function SetupPage() {
           <img src="/mascot.png" alt="The BC Mission Control fox at a data console" className={styles.heroImg} />
         </div>
         <Text block size={200} style={{ margin: '0 0 16px', color: '#6b6a68' }}>
-          Leave Client ID blank to use the built-in shared Microsoft registration, or enter
-          your own multi-tenant Entra ID app registration. The refresh token is stored locally
-          on this machine and reused across all your tenants until it exceeds the validity window.
+          Sign-in uses the built-in shared Microsoft registration. The refresh token is
+          stored locally on this machine and reused across all your tenants until it
+          exceeds the validity window.
         </Text>
         <div className={styles.row}>
-          <Field label="Client ID (optional)" style={{ minWidth: '340px', flexGrow: 1 }}>
-            <Input
-              value={settings.clientId}
-              placeholder="Blank = shared Azure PowerShell registration"
-              onChange={(_e, d) => setSettings({ ...settings, clientId: d.value })}
-              onBlur={() => save(settings)}
-            />
-          </Field>
           <Field label="Token validity (days)">
             <Input
               type="number"
@@ -186,6 +179,25 @@ export default function SetupPage() {
             />
           </Field>
         </div>
+        <Accordion collapsible style={{ marginTop: '8px' }}>
+          <AccordionItem value="advanced">
+            <AccordionHeader size="small">Advanced</AccordionHeader>
+            <AccordionPanel>
+              <Text block size={200} style={{ margin: '0 0 12px', color: '#6b6a68' }}>
+                Only set a Client ID if your company blocks shared app registrations and
+                requires its own multi-tenant Entra ID app. Leave blank otherwise.
+              </Text>
+              <Field label="Client ID (optional)" style={{ minWidth: '340px' }}>
+                <Input
+                  value={settings.clientId}
+                  placeholder="Blank = shared Azure PowerShell registration"
+                  onChange={(_e, d) => setSettings({ ...settings, clientId: d.value })}
+                  onBlur={() => save(settings)}
+                />
+              </Field>
+            </AccordionPanel>
+          </AccordionItem>
+        </Accordion>
         <div className={styles.row} style={{ marginTop: '16px' }}>
           {auth?.signedIn && !auth.expired ? (
             <Badge appearance="filled" color="success" size="large">
