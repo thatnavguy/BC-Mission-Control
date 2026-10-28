@@ -85,6 +85,8 @@ export default function DeployPage() {
     setSettings(s);
     setAuth(a);
     setApps(appList);
+    // Drop selections for apps that no longer exist (e.g. deleted after deploy)
+    setSelectedApps(prev => new Set([...prev].filter(f => appList.some(a => a.fileName === f))));
     setActiveRun(prev => prev ?? runs.find(r => r.status === 'running' || r.status === 'waiting') ?? null);
     return appList;
   }, []);
