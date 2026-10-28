@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Accordion, AccordionHeader, AccordionItem, AccordionPanel,
   Badge, Button, Card, Checkbox, Dialog, DialogActions, DialogBody,
@@ -6,7 +6,10 @@ import {
   MessageBar, MessageBarBody, Spinner, Table, TableBody, TableCell,
   TableHeader, TableHeaderCell, TableRow, Text, Title2, Title3, tokens
 } from '@fluentui/react-components';
-import { Add24Regular, ArrowSync24Regular, Delete24Regular } from '@fluentui/react-icons';
+import {
+  Add24Regular, ArrowDown24Regular, ArrowSync24Regular, ArrowUp24Regular,
+  Delete24Regular, ReOrderDotsVertical24Regular
+} from '@fluentui/react-icons';
 import { api } from '../api';
 import { fox, useSharedStyles } from '../theme';
 import { AuthStatus, DeviceCodeInfo, EnvironmentInfo, Settings, TenantConfig } from '../types';
@@ -61,12 +64,16 @@ export default function SetupPage() {
   const [device, setDevice] = useState<DeviceCodeInfo | null>(null);
   const [devicePending, setDevicePending] = useState(false);
   const [loadingEnvs, setLoadingEnvs] = useState<Record<string, boolean>>({});
+  const tenantKeys = useRef<string[]>([]);
+  const draggedTenant = useRef<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
     const [s, a] = await Promise.all([
       api.get<Settings>('/api/settings'),
       api.get<AuthStatus>('/api/auth/status')
     ]);
+    tenantKeys.current = s.tenants.map(() => crypto.randomUUID());
     setSettings(s);
     setAuth(a);
   }, []);
@@ -83,6 +90,18 @@ export default function SetupPage() {
     } catch (e: any) {
       setError(e.message);
     }
+  };
+
+  const moveTenant = (from: number, to: number) => {
+    draggedTenant.current = null;
+    setDropTarget(null);
+    if (!settings || from === to || to < 0 || to >= settings.tenants.length) return;
+    const tenants = [...settings.tenants];
+    const [tenant] = tenants.splice(from, 1);
+    tenants.splice(to, 0, tenant);
+    const [key] = tenantKeys.current.splice(from, 1);
+    tenantKeys.current.splice(to, 0, key);
+    void save({ ...settings, tenants });
   };
 
   const startSignIn = async () => {
@@ -222,17 +241,73 @@ export default function SetupPage() {
       <Card className={shared.card}>
         <div className={styles.row} style={{ justifyContent: 'space-between' }}>
           <Title3>Tenants &amp; Environments</Title3>
-          <Button icon={<Add24Regular />} onClick={() => save({ ...settings, tenants: [...settings.tenants, emptyTenant()] })}>
+          <Button icon={<Add24Regular />} onClick={() => {
+            tenantKeys.current.unshift(crypto.randomUUID());
+            void save({ ...settings, tenants: [emptyTenant(), ...settings.tenants] });
+          }}>
             Add tenant
           </Button>
         </div>
+        <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+          Drag the handle or use the arrows to reorder tenants. The first tenant with an enabled environment is selected by default.
+        </Text>
         {settings.tenants.length === 0 && (
           <Text block size={200} style={{ marginTop: '12px', color: tokens.colorNeutralForeground3 }}>
             No tenants configured yet. Add a tenant, then load its environments.
           </Text>
         )}
         {settings.tenants.map((tenant, idx) => (
-          <Card key={idx} className={styles.tenantCard}>
+          <Card
+            key={tenantKeys.current[idx]}
+            className={styles.tenantCard}
+            style={dropTarget === idx ? { outline: `2px solid ${tokens.colorBrandStroke1}` } : undefined}
+            onDragOver={event => {
+              if (draggedTenant.current === null) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+              setDropTarget(idx);
+            }}
+            onDrop={event => {
+              if (draggedTenant.current === null) return;
+              event.preventDefault();
+              moveTenant(draggedTenant.current, idx);
+            }}
+          >
+            <div className={styles.row}>
+              <Button
+                appearance="subtle"
+                icon={<ReOrderDotsVertical24Regular />}
+                aria-label={`Drag to reorder ${tenant.name || 'tenant'}`}
+                title="Drag to reorder"
+                draggable
+                style={{ cursor: 'grab' }}
+                onDragStart={event => {
+                  draggedTenant.current = idx;
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', String(idx));
+                }}
+                onDragEnd={() => {
+                  draggedTenant.current = null;
+                  setDropTarget(null);
+                }}
+              />
+              <Button
+                appearance="subtle"
+                icon={<ArrowUp24Regular />}
+                aria-label={`Move ${tenant.name || 'tenant'} up`}
+                title="Move up"
+                disabled={idx === 0}
+                onClick={() => moveTenant(idx, idx - 1)}
+              />
+              <Button
+                appearance="subtle"
+                icon={<ArrowDown24Regular />}
+                aria-label={`Move ${tenant.name || 'tenant'} down`}
+                title="Move down"
+                disabled={idx === settings.tenants.length - 1}
+                onClick={() => moveTenant(idx, idx + 1)}
+              />
+            </div>
             <div className={styles.row}>
               <Field label="Tenant name">
                 <Input
@@ -264,10 +339,30 @@ export default function SetupPage() {
               </Button>
               <Button
                 icon={<Delete24Regular />}
-                onClick={() => save({ ...settings, tenants: settings.tenants.filter((_t, i) => i !== idx) })}
+                aria-label={`Delete ${tenant.name || 'tenant'}`}
+                onClick={() => {
+                  tenantKeys.current.splice(idx, 1);
+                  void save({ ...settings, tenants: settings.tenants.filter((_t, i) => i !== idx) });
+                }}
               />
             </div>
             {Object.keys(tenant.environments).length > 0 && (
+              <>
+              <Checkbox
+                label="Enable all environments"
+                checked={Object.values(tenant.environments).every(Boolean)
+                  ? true
+                  : Object.values(tenant.environments).some(Boolean) ? 'mixed' : false}
+                onChange={(_e, d) => {
+                  const tenants = settings.tenants.map((t, i) => i === idx ? {
+                    ...t,
+                    environments: Object.fromEntries(
+                      Object.keys(t.environments).map(env => [env, d.checked === true])
+                    )
+                  } : t);
+                  void save({ ...settings, tenants });
+                }}
+              />
               <Table size="small" style={{ marginTop: '12px' }}>
                 <TableHeader>
                   <TableRow>
@@ -280,6 +375,7 @@ export default function SetupPage() {
                     <TableRow key={env}>
                       <TableCell>
                         <Checkbox
+                          aria-label={`Enable ${env}`}
                           checked={enabled}
                           onChange={(_e, d) => {
                             const tenants = settings.tenants.map((t, i) =>
@@ -294,6 +390,7 @@ export default function SetupPage() {
                   ))}
                 </TableBody>
               </Table>
+              </>
             )}
           </Card>
         ))}
