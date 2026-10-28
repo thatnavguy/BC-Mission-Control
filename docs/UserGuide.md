@@ -332,6 +332,7 @@ through console windows.
 
 | Problem | What to do |
 |---|---|
+| `npm` or `node` is “not recognized” | Install Node.js 18 or later. Then close and reopen the console window and run `Start-MissionControl.bat` again. |
 | The browser shows "can't reach this page" | Start the app again with `Start-MissionControl.bat` and keep the console window open. |
 | A page asks you to sign in again | Your token expired. Go to **Setup** → **Re-authenticate**. |
 | "Load environments" fails | Check the Tenant ID is a valid GUID and your account has access to that tenant's Admin Center. |
