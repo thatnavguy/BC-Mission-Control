@@ -60,6 +60,23 @@ interface CompareCache {
   result: CompareResult;
 }
 
+function downloadFile(filename: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function csvValue(value: string | null | undefined): string {
+  let text = value ?? '';
+  if (/^[\t\r ]*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 export default function ComparePage() {
   const styles = useStyles();
   const shared = useSharedStyles();
@@ -118,6 +135,50 @@ export default function ComparePage() {
   }, []);
 
   const rows = result?.rows.filter(r => !driftOnly || r.drift === true) ?? [];
+
+  const downloadCsv = () => {
+    if (!result) return;
+    const headers = [
+      'App ID',
+      'App',
+      'Publisher',
+      ...result.columns.flatMap(c => {
+        const environment = `${c.tenantName} / ${c.environment}`;
+        return [`${environment} Version`, `${environment} Scope`, ...(c.error ? [`${environment} Error`] : [])];
+      }),
+      'Drift'
+    ];
+    const records = rows.map(row => [
+      row.appId,
+      row.name,
+      row.publisher,
+      ...result.columns.flatMap(c => {
+        const cell = row.cells[c.key];
+        return [
+          cell?.version ?? '',
+          cell?.scope ?? '',
+          ...(c.error ? [c.error] : [])
+        ];
+      }),
+      row.drift === null ? '' : row.drift ? 'Different' : 'Same'
+    ]);
+    const csv = [headers, ...records].map(record => record.map(csvValue).join(',')).join('\r\n');
+    downloadFile(`compare-app-versions-${new Date().toISOString().slice(0, 10)}.csv`, `\uFEFF${csv}`, 'text/csv;charset=utf-8');
+  };
+
+  const downloadJson = () => {
+    if (!result) return;
+    downloadFile(
+      `compare-app-versions-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify({
+        generatedAt: new Date().toISOString(),
+        filters: { appName, publisher, driftOnly },
+        columns: result.columns,
+        rows
+      }, null, 2),
+      'application/json;charset=utf-8'
+    );
+  };
 
   return (
     <div className={styles.stack}>
@@ -219,6 +280,10 @@ export default function ComparePage() {
 
       {result && !loading && (
         <Card className={styles.cardWide}>
+          <div className={styles.row} style={{ marginBottom: '12px' }}>
+            <Button onClick={downloadCsv}>Download CSV</Button>
+            <Button onClick={downloadJson}>Download JSON</Button>
+          </div>
           {result.columns.some(c => c.error) && (
             <MessageBar intent="warning" style={{ marginBottom: '12px' }}>
               <MessageBarBody>

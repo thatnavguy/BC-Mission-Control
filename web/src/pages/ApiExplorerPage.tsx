@@ -172,6 +172,11 @@ export default function ApiExplorerPage() {
               HTTP {result.status}
             </Badge>
             <Text size={200} style={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>{result.url}</Text>
+            <Button
+              onClick={() => downloadResponse(responseFilename(), result)}
+            >
+              Download JSON
+            </Button>
           </div>
           <div className={styles.response}>{prettyBody || '(empty response)'}</div>
         </Card>
@@ -235,7 +240,19 @@ export default function ApiExplorerPage() {
                   <div className={styles.response}>{pretty(selected.requestBody)}</div>
                 </>
               )}
-              <Text block weight="semibold" size={200} style={{ marginTop: '8px' }}>Response</Text>
+              <div className={styles.row} style={{ justifyContent: 'space-between', marginTop: '8px' }}>
+                <Text weight="semibold" size={200}>Response</Text>
+                <Button
+                  onClick={() => downloadResponse(responseFilename(selected.timestamp), {
+                    status: selected.status,
+                    url: selected.url,
+                    body: selected.responseBody,
+                    error: selected.error
+                  })}
+                >
+                  Download JSON
+                </Button>
+              </div>
               <div className={styles.response}>{pretty(selected.responseBody) || '(empty response)'}</div>
             </div>
           )}
@@ -248,6 +265,38 @@ export default function ApiExplorerPage() {
 function pretty(body?: string): string {
   if (!body) return '';
   try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; }
+}
+
+function downloadResponse(filename: string, response: {
+  status?: number;
+  url: string;
+  contentType?: string | null;
+  body?: string;
+  error?: string;
+}) {
+  let body: unknown = response.body ?? '';
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { /* Keep non-JSON responses as strings. */ }
+  }
+  const content = JSON.stringify({
+    status: response.status,
+    url: response.url,
+    contentType: response.contentType,
+    error: response.error,
+    body
+  }, null, 2);
+  const url = URL.createObjectURL(new Blob([content], { type: 'application/json;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function responseFilename(timestamp = new Date().toISOString()) {
+  return `api-response-${timestamp.replace(/[:.]/g, '-')}.json`;
 }
 
 function historyStatusBadge(h: ApiCallHistoryEntry) {
