@@ -38,6 +38,7 @@ function resultBadge(status: string) {
     case 'scheduled': return <Badge appearance="filled" color="informative">Scheduled</Badge>;
     case 'failed': return <Badge appearance="filled" color="danger">Failed</Badge>;
     case 'skipped': return <Badge appearance="outline" color="subtle">Skipped</Badge>;
+    case 'unknown': return <Badge appearance="filled" color="important">Unconfirmed</Badge>;
     default: return <Badge appearance="outline">Pending</Badge>;
   }
 }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
-  makeStyles, Tab, TabList, tokens
+  makeStyles, Spinner, Tab, TabList, tokens
 } from '@fluentui/react-components';
 import {
   ArrowUpload24Regular, Settings24Regular, History24Regular,
@@ -10,23 +10,23 @@ import {
   PersonDesktopRegular, ToggleLeft24Regular, MailAlert24Regular
 } from '@fluentui/react-icons';
 import { fox } from './theme';
-import DeployPage from './pages/DeployPage';
-import SetupPage from './pages/SetupPage';
-import HistoryPage from './pages/HistoryPage';
-import AppsPage from './pages/AppsPage';
-import ComparePage from './pages/ComparePage';
-import StatusPage from './pages/StatusPage';
-import ApiExplorerPage from './pages/ApiExplorerPage';
-import ContainersPage from './pages/ContainersPage';
-import ContainerDeployPage from './pages/ContainerDeployPage';
-import EnvironmentsPage from './pages/EnvironmentsPage';
-import UpdatesPage from './pages/UpdatesPage';
-import StoragePage from './pages/StoragePage';
-import OperationsPage from './pages/OperationsPage';
-import UpdateManagementPage from './pages/UpdateManagementPage';
-import SessionsPage from './pages/SessionsPage';
-import FeaturesPage from './pages/FeaturesPage';
-import NotificationsPage from './pages/NotificationsPage';
+const DeployPage = lazy(() => import('./pages/DeployPage'));
+const SetupPage = lazy(() => import('./pages/SetupPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
+const AppsPage = lazy(() => import('./pages/AppsPage'));
+const ComparePage = lazy(() => import('./pages/ComparePage'));
+const StatusPage = lazy(() => import('./pages/StatusPage'));
+const ApiExplorerPage = lazy(() => import('./pages/ApiExplorerPage'));
+const ContainersPage = lazy(() => import('./pages/ContainersPage'));
+const ContainerDeployPage = lazy(() => import('./pages/ContainerDeployPage'));
+const EnvironmentsPage = lazy(() => import('./pages/EnvironmentsPage'));
+const UpdatesPage = lazy(() => import('./pages/UpdatesPage'));
+const StoragePage = lazy(() => import('./pages/StoragePage'));
+const OperationsPage = lazy(() => import('./pages/OperationsPage'));
+const UpdateManagementPage = lazy(() => import('./pages/UpdateManagementPage'));
+const SessionsPage = lazy(() => import('./pages/SessionsPage'));
+const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 const useStyles = makeStyles({
   shell: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ffffff' },
@@ -87,13 +87,18 @@ const useStyles = makeStyles({
   }
 });
 
-type PageKey = 'environments' | 'deploy' | 'apps' | 'updates' | 'bcupdates' | 'features' | 'sessions' | 'notifications' | 'compare' | 'status' | 'operations' | 'storage' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
+const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'bcupdates', 'features', 'sessions', 'notifications', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'] as const;
 
-const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'bcupdates', 'features', 'sessions', 'notifications', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'];
+type PageKey = (typeof PAGE_KEYS)[number];
+
+function pageFromHash(): PageKey | undefined {
+  const p = location.hash.replace('#', '');
+  return (PAGE_KEYS as readonly string[]).includes(p) ? (p as PageKey) : undefined;
+}
 
 export default function App() {
   const styles = useStyles();
-  const [page, setPage] = useState<PageKey>(() => (location.hash.replace('#', '') as PageKey) || 'deploy');
+  const [page, setPage] = useState<PageKey>(() => pageFromHash() ?? 'deploy');
 
   useEffect(() => {
     location.hash = page;
@@ -101,8 +106,8 @@ export default function App() {
 
   useEffect(() => {
     const onHash = () => {
-      const p = location.hash.replace('#', '') as PageKey;
-      if (PAGE_KEYS.includes(p)) setPage(p);
+      const p = pageFromHash();
+      if (p) setPage(p);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
@@ -148,25 +153,27 @@ export default function App() {
         </TabList>
       </nav>
       <main className={styles.content} key={page}>
-        <div className="page-enter">
-          {page === 'environments' && <EnvironmentsPage />}
-          {page === 'deploy' && <DeployPage />}
-          {page === 'apps' && <AppsPage />}
-          {page === 'updates' && <UpdatesPage />}
-          {page === 'bcupdates' && <UpdateManagementPage />}
-          {page === 'features' && <FeaturesPage />}
-          {page === 'sessions' && <SessionsPage />}
-          {page === 'notifications' && <NotificationsPage />}
-          {page === 'compare' && <ComparePage />}
-          {page === 'status' && <StatusPage />}
-          {page === 'operations' && <OperationsPage />}
-          {page === 'storage' && <StoragePage />}
-          {page === 'api' && <ApiExplorerPage />}
-          {page === 'cdeploy' && <ContainerDeployPage />}
-          {page === 'containers' && <ContainersPage />}
-          {page === 'history' && <HistoryPage />}
-          {page === 'setup' && <SetupPage />}
-        </div>
+        <Suspense fallback={<Spinner />}>
+          <div className="page-enter">
+            {page === 'environments' && <EnvironmentsPage />}
+            {page === 'deploy' && <DeployPage />}
+            {page === 'apps' && <AppsPage />}
+            {page === 'updates' && <UpdatesPage />}
+            {page === 'bcupdates' && <UpdateManagementPage />}
+            {page === 'features' && <FeaturesPage />}
+            {page === 'sessions' && <SessionsPage />}
+            {page === 'notifications' && <NotificationsPage />}
+            {page === 'compare' && <ComparePage />}
+            {page === 'status' && <StatusPage />}
+            {page === 'operations' && <OperationsPage />}
+            {page === 'storage' && <StoragePage />}
+            {page === 'api' && <ApiExplorerPage />}
+            {page === 'cdeploy' && <ContainerDeployPage />}
+            {page === 'containers' && <ContainersPage />}
+            {page === 'history' && <HistoryPage />}
+            {page === 'setup' && <SetupPage />}
+          </div>
+        </Suspense>
       </main>
     </div>
   );

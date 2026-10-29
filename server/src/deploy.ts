@@ -3,7 +3,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { UPLOADS_DIR, loadSettings } from './store';
 import { effectiveClientId, getAccessToken } from './auth';
-import { publishPteImmediate, schedulePteInstall } from './bcClient';
+import { TokenSource, publishPteImmediate, schedulePteInstall } from './bcClient';
 import { parseAppManifest, sortByDependencies } from './appManifest';
 import {
   DeployRun, DeployTargetResult, ScheduleOption, SchemaSyncOption, StagedApp
@@ -22,8 +22,33 @@ export function onRunUpdate(listener: (run: DeployRun) => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function emit(run: DeployRun): void {
+const EMIT_INTERVAL_MS = 300;
+const emitWindows = new Map<string, { timer: NodeJS.Timeout; dirty: boolean }>();
+
+function broadcast(run: DeployRun): void {
   for (const l of listeners) l(run);
+}
+
+/**
+ * Broadcast a run, coalescing bursts: the first change goes out immediately,
+ * later changes within EMIT_INTERVAL_MS are folded into one trailing update.
+ * Busy runs log many lines per second and each event carries the whole run.
+ */
+function emit(run: DeployRun): void {
+  const window = emitWindows.get(run.id);
+  if (window) {
+    window.dirty = true;
+    return;
+  }
+  broadcast(run);
+  const state = {
+    dirty: false,
+    timer: setTimeout(() => {
+      emitWindows.delete(run.id);
+      if (state.dirty) emit(run);
+    }, EMIT_INTERVAL_MS)
+  };
+  emitWindows.set(run.id, state);
 }
 
 /** Insert a run and prune the registry to MAX_RUNS (oldest finished runs first). */
@@ -217,13 +242,15 @@ async function executeRun(
   });
   const orderedApps = sortByDependencies(staged);
 
-  // Acquire tokens sequentially per tenant (refresh tokens rotate)
+  // Check auth sequentially per tenant (refresh tokens rotate). Each unit then
+  // asks for a token per request, so long runs survive access-token expiry.
   const tenantIds = [...new Set(req.targets.map(t => t.tenantId))];
-  const settings = loadSettings();
-  const tokens = new Map<string, string>();
+  const clientId = effectiveClientId(loadSettings().clientId);
+  const tokens = new Map<string, TokenSource>();
   for (const tenantId of tenantIds) {
     try {
-      tokens.set(tenantId, await getAccessToken(effectiveClientId(settings.clientId), tenantId));
+      await getAccessToken(clientId, tenantId);
+      tokens.set(tenantId, () => getAccessToken(clientId, tenantId));
       run.log.push(`[${new Date().toISOString()}] Auth OK for tenant ${tenantIds.length > 1 ? tenantId : ''}`.trim());
     } catch (err: any) {
       for (const r of run.results.filter(r => r.tenantId === tenantId)) {
@@ -274,14 +301,14 @@ async function executeRun(
   const workerCount = Math.min(MAX_PARALLEL, groups.size || 1);
   await Promise.all(Array.from({ length: workerCount }, worker));
 
-  const failed = run.results.filter(r => r.status === 'failed').length;
+  const failed = run.results.filter(r => r.status === 'failed' || r.status === 'unknown').length;
   run.status = failed > 0 ? 'completed-with-errors' : 'completed';
   run.finishedAt = new Date().toISOString();
   run.log.push(`[${run.finishedAt}] Run finished — ${run.results.length - failed}/${run.results.length} target(s) OK`);
 
   if (req.deleteAfterDeploy) {
     for (const app of orderedApps) {
-      const appFailed = run.results.some(r => r.appFile === app.fileName && r.status === 'failed');
+      const appFailed = run.results.some(r => r.appFile === app.fileName && (r.status === 'failed' || r.status === 'unknown'));
       if (appFailed) continue;
       try {
         fs.unlinkSync(app.absPath);
@@ -300,7 +327,7 @@ async function executeUnit(
   environment: string,
   app: StagedApp & { absPath: string },
   results: DeployTargetResult[],
-  token: string,
+  token: TokenSource,
   req: DeployRequest
 ): Promise<void> {
   const report = (patch: Partial<DeployTargetResult>, logLine?: string) => {
@@ -341,7 +368,7 @@ async function executeUnit(
         msg => report({ status: 'running', message: msg })
       );
       if (outcome.status === 'succeeded') report({ status: 'succeeded', message: outcome.message }, 'succeeded');
-      else if (outcome.status === 'skipped') report({ status: 'skipped', message: outcome.message }, 'skipped');
+      else if (outcome.status === 'unknown') report({ status: 'unknown', message: outcome.message }, `unconfirmed — ${outcome.message}`);
       else report({ status: 'failed', message: outcome.message }, `failed — ${outcome.message}`);
     }
   } catch (err: any) {

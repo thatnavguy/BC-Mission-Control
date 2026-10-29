@@ -58,7 +58,9 @@ export type TargetStatus =
   | 'succeeded'
   | 'skipped'
   | 'scheduled'
-  | 'failed';
+  | 'failed'
+  /** Submitted, but the final outcome could not be confirmed (status polling timed out). */
+  | 'unknown';
 
 export interface DeployTargetResult {
   tenantId: string;

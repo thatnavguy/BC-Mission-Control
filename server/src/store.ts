@@ -21,10 +21,35 @@ const DEFAULT_SETTINGS: Settings = {
   containerDefaults: { licenseFile: '', dns: '', country: 'nz', memoryLimit: '8G' }
 };
 
+/**
+ * Write via a temp file + rename so a crash mid-write never leaves a
+ * truncated file behind. Falls back to a direct write if the rename is
+ * blocked (e.g. antivirus holding the target open on Windows).
+ */
+export function writeFileAtomic(filePath: string, content: string): void {
+  const tmp = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, content, 'utf8');
+  try {
+    fs.renameSync(tmp, filePath);
+  } catch {
+    fs.writeFileSync(filePath, content, 'utf8');
+    fs.rmSync(tmp, { force: true });
+  }
+}
+
 export function loadSettings(): Settings {
   if (!fs.existsSync(SETTINGS_PATH)) return { ...DEFAULT_SETTINGS };
   const raw = fs.readFileSync(SETTINGS_PATH, 'utf8').replace(/^\uFEFF/, '');
-  const parsed = JSON.parse(raw);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err: any) {
+    // Keep the broken file for manual recovery instead of refusing to start.
+    const backup = `${SETTINGS_PATH}.corrupt-${Date.now()}`;
+    try { fs.renameSync(SETTINGS_PATH, backup); } catch { /* best effort */ }
+    console.error(`settings.json could not be parsed (${err.message}); moved to ${backup} and using defaults.`);
+    return { ...DEFAULT_SETTINGS };
+  }
   return {
     clientId: typeof parsed.clientId === 'string' ? parsed.clientId : '',
     tokenValidityDays: Number.isFinite(parsed.tokenValidityDays) ? parsed.tokenValidityDays : 80,
@@ -41,5 +66,14 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(settings: Settings): void {
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  writeFileAtomic(SETTINGS_PATH, JSON.stringify(settings, null, 2) + '\n');
+}
+
+/** Remove temp scripts/work files left behind if the server stopped mid-run. */
+export function cleanupStaleRunFiles(): void {
+  for (const f of fs.readdirSync(DATA_DIR)) {
+    if (/^container-(deploy|create|units)-.*\.(ps1|json)$/i.test(f) || /\.\d+\.tmp$/.test(f)) {
+      fs.rmSync(path.join(DATA_DIR, f), { force: true });
+    }
+  }
 }

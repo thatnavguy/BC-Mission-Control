@@ -53,8 +53,20 @@ export default function HistoryPage() {
 
   useEffect(() => {
     refresh().catch(e => { setError(e.message); setLoading(false); });
-    // Keep history live while any run is active
-    return subscribeRuns(() => { refresh().catch(() => undefined); });
+    // Keep history live while any run is active. Runs emit many events per
+    // second, so refetch at most about once a second.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = subscribeRuns(() => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        refresh().catch(() => undefined);
+      }, 1000);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
   }, [refresh]);
 
   if (loading) return <Spinner label="Loading history..." />;

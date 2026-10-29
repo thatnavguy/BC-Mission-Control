@@ -71,10 +71,10 @@ router.put('/settings', (req, res) => {
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 
-router.get('/auth/status', (_req, res) => {
+router.get('/auth/status', asyncWrap(async (_req, res) => {
   const s = loadSettings();
-  res.json(getAuthStatus(s.tokenValidityDays));
-});
+  res.json(await getAuthStatus(s.tokenValidityDays));
+}));
 
 router.post('/auth/device/start', asyncWrap(async (req, res) => {
   const s = loadSettings();
@@ -83,9 +83,9 @@ router.post('/auth/device/start', asyncWrap(async (req, res) => {
   res.json(info);
 }));
 
-router.get('/auth/device/status', (_req, res) => {
-  res.json(getDeviceFlowStatus());
-});
+router.get('/auth/device/status', asyncWrap(async (_req, res) => {
+  res.json(await getDeviceFlowStatus());
+}));
 
 router.post('/auth/device/cancel', (_req, res) => {
   cancelDeviceFlow();
@@ -481,7 +481,8 @@ router.post('/call', asyncWrap(async (req, res) => {
       },
       body: m === 'GET' || m === 'DELETE' || body === undefined || body === null || body === ''
         ? undefined
-        : typeof body === 'string' ? body : JSON.stringify(body)
+        : typeof body === 'string' ? body : JSON.stringify(body),
+      signal: AbortSignal.timeout(2 * 60 * 1000)
     });
     const text = await resp.text();
     recordCall({

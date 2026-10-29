@@ -40,7 +40,7 @@ export interface StagedApp {
   manifestError?: string;
 }
 
-export type TargetStatus = 'pending' | 'running' | 'succeeded' | 'skipped' | 'scheduled' | 'failed';
+export type TargetStatus = 'pending' | 'running' | 'succeeded' | 'skipped' | 'scheduled' | 'failed' | 'unknown';
 
 export interface DeployTargetResult {
   tenantId: string;

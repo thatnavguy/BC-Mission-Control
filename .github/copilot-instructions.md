@@ -13,7 +13,8 @@ containers. TypeScript monorepo with two packages: `server/` (Express API) and
 - Typecheck/build server only: `npm --prefix server run build`
 - Build web only: `npm --prefix web run build` (runs `tsc -b` then `vite build`)
 
-There are no tests and no linter configured — typechecking is the gate. If you
+There are no tests and no linter configured — typechecking is the gate
+(`.github/workflows/ci.yml` runs both builds on push/PR). If you
 change server code, restart the running process (it serves `web/dist` and the
 API from memory). Web-only changes need no restart: the server serves
 `web/dist` from disk per request.
@@ -43,7 +44,11 @@ Docker workloads; there is no REST alternative). See the marker protocol below.
   clientId — always go through `effectiveClientId(settings.clientId)`.
 - One refresh token (`server/data/token.json`) is shared across tenants and
   **rotates on every redemption** — always persist a returned new refresh token.
-  Access tokens are cached per tenant in memory.
+  It is stored DPAPI-encrypted (`refreshTokenDpapi`); go through
+  `loadTokenData()`/`saveTokenData()` (async), never read the file directly.
+  Redemptions are serialized; the token is only wiped on dead-token AADSTS codes.
+  Access tokens are cached per tenant in memory. Long-running loops should pass
+  a `TokenSource` provider (not a string) to `bcClient` so tokens refresh mid-run.
 - Device flow runs server-side in background (`startDeviceFlow` returns
   immediately; the frontend polls `/api/auth/device/status`).
 
@@ -87,6 +92,11 @@ Docker workloads; there is no REST alternative). See the marker protocol below.
   compare API (`?target=` repeated) and by checkbox state in pages.
 - API Explorer (`POST /api/call`) is allowlisted to
   `api.businesscentral.dynamics.com` — never widen this without a user request.
+- `/api` is guarded in `server/src/index.ts`: the `Host` must be a loopback
+  name and non-GET requests with an `Origin` must come from a loopback origin
+  (blocks DNS rebinding and CSRF). Don't add CORS headers or bypass this.
+- Never embed secrets (passwords) in generated `.ps1` files; pass them to
+  `runPwshScript` via its env parameter.
 - Fluent UI v9 (Griffel) styling: do not mix the `border` shorthand with
   `borderColor`/`borderStyle` longhands across style slots in `makeStyles` —
   it fails typechecking with a cryptic error. Use the full shorthand.

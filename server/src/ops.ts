@@ -4,10 +4,20 @@ import { effectiveClientId, getAccessToken } from './auth';
 import {
   copyEnvironment, createEnvironment, deleteEnvironment,
   getAppOperation, getCompanies, getEnvironmentOperation, getExtensions,
-  invokeExtensionAction, InstalledExtension, listEnvironments, updateApp
+  invokeExtensionAction, InstalledExtension, listEnvironments, TokenSource, updateApp
 } from './bcClient';
 import { emitRun, registerRun } from './deploy';
 import { DeployRun, DeployTargetResult, EnvironmentInfo } from './types';
+
+/**
+ * Verify auth for a tenant, then return a provider that fetches a (cached)
+ * token on every call, so long polling loops survive access-token expiry.
+ */
+async function tokenProvider(tenantId: string): Promise<TokenSource> {
+  const clientId = effectiveClientId(loadSettings().clientId);
+  await getAccessToken(clientId, tenantId);
+  return () => getAccessToken(clientId, tenantId);
+}
 
 const APP_UPDATE_POLL_MS = 15 * 1000;
 const APP_UPDATE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -28,7 +38,7 @@ function setResult(run: DeployRun, result: DeployTargetResult, patch: Partial<De
 }
 
 function finishRun(run: DeployRun): void {
-  const failed = run.results.filter(r => r.status === 'failed').length;
+  const failed = run.results.filter(r => r.status === 'failed' || r.status === 'unknown').length;
   run.status = failed > 0 ? 'completed-with-errors' : 'completed';
   run.finishedAt = new Date().toISOString();
   run.log.push(`[${run.finishedAt}] Run finished — ${run.results.length - failed}/${run.results.length} target(s) OK`);
@@ -87,10 +97,9 @@ async function executeAppUpdates(
   req: AppUpdateRequest,
   apps: { appId: string; name: string; targetVersion: string }[]
 ): Promise<void> {
-  const settings = loadSettings();
-  let token: string;
+  let token: TokenSource;
   try {
-    token = await getAccessToken(effectiveClientId(settings.clientId), req.tenantId);
+    token = await tokenProvider(req.tenantId);
   } catch (err: any) {
     for (const r of run.results) setResult(run, r, { status: 'failed', message: `Auth failed: ${err.message}` });
     finishRun(run);
@@ -142,7 +151,7 @@ async function executeAppUpdates(
         }
       }
       if (!done) {
-        setResult(run, result, { status: 'succeeded', message: 'Update accepted; status polling timed out — check Deployment Status later' }, 'polling timed out');
+        setResult(run, result, { status: 'unknown', message: 'Update accepted, but status polling timed out. Check Deployment Status later.' }, 'polling timed out');
       }
     } catch (err: any) {
       setResult(run, result, { status: 'failed', message: err.message }, `failed — ${err.message}`);
@@ -209,8 +218,7 @@ async function executeEnvironmentOp(run: DeployRun, req: EnvironmentManageReques
     finishRun(run);
   };
   try {
-    const settings = loadSettings();
-    const token = await getAccessToken(effectiveClientId(settings.clientId), req.tenantId);
+    const token = await tokenProvider(req.tenantId);
     setResult(run, result, { status: 'running', message: 'Submitting request...' });
 
     let opId: string | undefined;
@@ -332,7 +340,7 @@ export async function startBulkExtensionRun(req: BulkExtensionRequest): Promise<
   if (!tenant) throw new Error(`Unknown tenant: ${req.tenantId}`);
   if (!req.environment) throw new Error('Environment is required');
 
-  const token = await getAccessToken(effectiveClientId(settings.clientId), req.tenantId);
+  const token = await tokenProvider(req.tenantId);
   const companies = await getCompanies(token, req.tenantId, req.environment);
   if (companies.length === 0) throw new Error('No companies in environment');
   const companyId = companies[0].id;
@@ -371,7 +379,7 @@ export async function startBulkExtensionRun(req: BulkExtensionRequest): Promise<
 async function executeBulk(
   run: DeployRun,
   req: BulkExtensionRequest,
-  token: string,
+  token: TokenSource,
   companyId: string,
   items: InstalledExtension[]
 ): Promise<void> {

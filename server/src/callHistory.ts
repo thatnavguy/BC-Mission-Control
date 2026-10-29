@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { DATA_DIR } from './store';
+import { DATA_DIR, writeFileAtomic } from './store';
 import { ApiCallHistoryEntry } from './types';
 
 const HISTORY_PATH = path.join(DATA_DIR, 'callHistory.json');
@@ -33,9 +33,9 @@ export function recordCall(entry: Omit<ApiCallHistoryEntry, 'id' | 'timestamp'>)
     timestamp: new Date().toISOString()
   });
   if (history.length > MAX_ENTRIES) history.length = MAX_ENTRIES;
-  fs.writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2) + '\n', 'utf8');
+  writeFileAtomic(HISTORY_PATH, JSON.stringify(history, null, 2) + '\n');
 }
 
 export function clearCallHistory(): void {
-  fs.writeFileSync(HISTORY_PATH, '[]\n', 'utf8');
+  writeFileAtomic(HISTORY_PATH, '[]\n');
 }

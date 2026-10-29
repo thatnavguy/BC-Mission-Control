@@ -41,7 +41,8 @@ function statusBadge(status: TargetStatus) {
     succeeded: { color: 'success', label: 'Succeeded' },
     skipped: { color: 'subtle', label: 'Skipped' },
     scheduled: { color: 'brand', label: 'Scheduled' },
-    failed: { color: 'danger', label: 'Failed' }
+    failed: { color: 'danger', label: 'Failed' },
+    unknown: { color: 'important', label: 'Unconfirmed' }
   };
   const { color, label } = map[status];
   return <Badge appearance="filled" color={color}>{label}</Badge>;

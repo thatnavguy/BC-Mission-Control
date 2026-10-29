@@ -3,35 +3,93 @@ import { EnvironmentInfo } from './types';
 const ADMIN_API = 'https://api.businesscentral.dynamics.com/admin/v2.29';
 const API_V2 = 'https://api.businesscentral.dynamics.com/v2.0';
 
+const DEFAULT_TIMEOUT_MS = 2 * 60 * 1000;
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+const MAX_RETRIES = 3;
+const MAX_RETRY_DELAY_MS = 60 * 1000;
+const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+
+/**
+ * A bearer token, or a function returning one. Long-running loops pass a
+ * provider so every request gets a fresh (cached) token instead of reusing
+ * one that may expire mid-run.
+ */
+export type TokenSource = string | (() => Promise<string>);
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 export class BcApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
   }
 }
 
-async function request(url: string, token: string, init: RequestInit = {}, raw = false): Promise<any> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    ...(init.headers as Record<string, string> | undefined)
-  };
-  const resp = await fetch(url, { ...init, headers });
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    let message = text;
-    try {
-      const j = JSON.parse(text);
-      message = j?.error?.message || j?.message || text;
-    } catch { /* keep raw text */ }
-    throw new BcApiError(resp.status, `HTTP ${resp.status}: ${message}`.slice(0, 500));
+function retryDelayMs(resp: Response | undefined, attempt: number): number {
+  const header = resp?.headers.get('retry-after');
+  if (header) {
+    const seconds = Number(header);
+    const ms = Number.isFinite(seconds) ? seconds * 1000 : new Date(header).getTime() - Date.now();
+    if (Number.isFinite(ms) && ms >= 0) return Math.min(ms, MAX_RETRY_DELAY_MS);
   }
-  if (raw || resp.status === 204) return resp;
-  const text = await resp.text();
-  return text ? JSON.parse(text) : {};
+  return Math.min(2000 * 2 ** attempt, MAX_RETRY_DELAY_MS);
+}
+
+/**
+ * Fetch with a timeout. Throttled requests (429) are retried for any method,
+ * since BC rejects them before processing. Network errors and 502/503/504 are
+ * only retried for GET, so non-idempotent operations are never sent twice.
+ */
+async function request(
+  url: string,
+  token: TokenSource,
+  init: RequestInit = {},
+  raw = false,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<any> {
+  const method = (init.method ?? 'GET').toUpperCase();
+  const idempotent = method === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const bearer = typeof token === 'string' ? token : await token();
+    const headers: Record<string, string> = {
+      Authorization: 'Bearer ' + bearer,
+      ...(init.headers as Record<string, string> | undefined)
+    };
+    let resp: Response;
+    try {
+      resp = await fetch(url, { ...init, headers, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (err: any) {
+      if (idempotent && attempt < MAX_RETRIES) {
+        await sleep(retryDelayMs(undefined, attempt));
+        continue;
+      }
+      if (err?.name === 'TimeoutError') {
+        throw new Error(`${method} ${url} timed out after ${Math.round(timeoutMs / 1000)}s`);
+      }
+      throw err;
+    }
+    if (!resp.ok && attempt < MAX_RETRIES && (resp.status === 429 || (idempotent && TRANSIENT_STATUSES.has(resp.status)))) {
+      await resp.body?.cancel().catch(() => undefined);
+      await sleep(retryDelayMs(resp, attempt));
+      continue;
+    }
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      let message = text;
+      try {
+        const j = JSON.parse(text);
+        message = j?.error?.message || j?.message || text;
+      } catch { /* keep raw text */ }
+      throw new BcApiError(resp.status, `HTTP ${resp.status}: ${message}`.slice(0, 500));
+    }
+    if (raw || resp.status === 204) return resp;
+    const text = await resp.text();
+    return text ? JSON.parse(text) : {};
+  }
 }
 
 // ── Admin Center API ─────────────────────────────────────────────────────────
 
-export async function listEnvironments(token: string): Promise<EnvironmentInfo[]> {
+export async function listEnvironments(token: TokenSource): Promise<EnvironmentInfo[]> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments`,
     token
@@ -52,7 +110,7 @@ export async function listEnvironments(token: string): Promise<EnvironmentInfo[]
 
 /** Scheduled PTE install (update window) via Admin Center API. Max 50 MB per file. */
 export async function schedulePteInstall(
-  token: string,
+  token: TokenSource,
   environment: string,
   appBuffer: Buffer,
   fileName: string,
@@ -65,21 +123,13 @@ export async function schedulePteInstall(
   form.set('syncMode', syncMode);
   form.set('acceptIsvEula', String(acceptIsvEula));
 
-  const resp = await fetch(
+  return request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps/pteInstall`,
-    { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, body: form }
+    token,
+    { method: 'POST', headers: { Accept: 'application/json' }, body: form },
+    false,
+    UPLOAD_TIMEOUT_MS
   );
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    let message = text;
-    try {
-      const j = JSON.parse(text);
-      message = j?.error?.message || j?.message || text;
-    } catch { /* keep raw */ }
-    throw new BcApiError(resp.status, `HTTP ${resp.status}: ${message}`.slice(0, 500));
-  }
-  const text = await resp.text();
-  return text ? JSON.parse(text) : {};
 }
 
 // ── App updates (Admin Center API) ──────────────────────────────────────────
@@ -101,7 +151,7 @@ export interface AppUpdateInfo {
 }
 
 /** Global (AppSource) apps installed on the environment that have a newer version available. */
-export async function getAvailableAppUpdates(token: string, environment: string): Promise<AppUpdateInfo[]> {
+export async function getAvailableAppUpdates(token: TokenSource, environment: string): Promise<AppUpdateInfo[]> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps/availableUpdates`,
     token
@@ -135,7 +185,7 @@ export interface AppOperation {
 
 /** Trigger an update of a global app. Dependencies are installed/updated automatically. */
 export async function updateApp(
-  token: string,
+  token: TokenSource,
   environment: string,
   appId: string,
   targetVersion: string,
@@ -157,7 +207,7 @@ export async function updateApp(
 }
 
 export async function getAppOperation(
-  token: string,
+  token: TokenSource,
   environment: string,
   appId: string,
   operationId: string
@@ -185,7 +235,7 @@ export interface SessionInfo {
   currentOperationDuration?: number;
 }
 
-export async function getActiveSessions(token: string, environment: string): Promise<SessionInfo[]> {
+export async function getActiveSessions(token: TokenSource, environment: string): Promise<SessionInfo[]> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/sessions`,
     token
@@ -205,7 +255,7 @@ export async function getActiveSessions(token: string, environment: string): Pro
 }
 
 /** Terminates an active session, disconnecting the user. */
-export async function killSession(token: string, environment: string, sessionId: number): Promise<void> {
+export async function killSession(token: TokenSource, environment: string, sessionId: number): Promise<void> {
   await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/sessions/${sessionId}`,
     token,
@@ -231,7 +281,7 @@ export interface EnvironmentUpdateInfo {
   expectedAvailability?: { month: number; year: number };
 }
 
-export async function getEnvironmentUpdates(token: string, environment: string): Promise<EnvironmentUpdateInfo[]> {
+export async function getEnvironmentUpdates(token: TokenSource, environment: string): Promise<EnvironmentUpdateInfo[]> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/updates`,
     token
@@ -247,7 +297,7 @@ export interface UpdateWindow {
   preferredEndTimeUtc?: string;
 }
 
-export async function getUpdateWindow(token: string, environment: string): Promise<UpdateWindow | null> {
+export async function getUpdateWindow(token: TokenSource, environment: string): Promise<UpdateWindow | null> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/settings/upgrade`,
     token
@@ -257,7 +307,7 @@ export async function getUpdateWindow(token: string, environment: string): Promi
 
 /** Set the update window with wall time + time zone (recommended over the UTC parameter set). */
 export async function setUpdateWindow(
-  token: string,
+  token: TokenSource,
   environment: string,
   window: { preferredStartTime: string; preferredEndTime: string; timeZoneId: string }
 ): Promise<UpdateWindow> {
@@ -274,7 +324,7 @@ export async function setUpdateWindow(
 
 /** Select the target version (and optionally a date) for the next environment update. */
 export async function selectTargetVersion(
-  token: string,
+  token: TokenSource,
   environment: string,
   targetVersion: string,
   schedule?: { selectedDateTime?: string; ignoreUpdateWindow?: boolean }
@@ -309,7 +359,7 @@ export interface TimeZoneInfo {
 // The time zone list is static; cache it for a day.
 let timezonesCache: { at: number; data: TimeZoneInfo[] } | null = null;
 
-export async function getTimezones(token: string): Promise<TimeZoneInfo[]> {
+export async function getTimezones(token: TokenSource): Promise<TimeZoneInfo[]> {
   if (timezonesCache && Date.now() - timezonesCache.at < 24 * 60 * 60 * 1000) return timezonesCache.data;
   const resp = await request(`${ADMIN_API}/applications/settings/timezones`, token);
   const data: TimeZoneInfo[] = (resp.value ?? [])
@@ -329,7 +379,7 @@ export interface EnvironmentStorageUsage {
   databaseStorageInKilobytes: number;
 }
 
-export async function getUsedStorage(token: string): Promise<EnvironmentStorageUsage[]> {
+export async function getUsedStorage(token: TokenSource): Promise<EnvironmentStorageUsage[]> {
   const resp = await request(`${ADMIN_API}/environments/usedstorage`, token);
   return (resp.value ?? []).map((e: any) => ({
     environmentName: e.environmentName,
@@ -344,7 +394,7 @@ export interface StorageQuotas {
   storage: { default: number; userLicenses: number; additionalCapacity: number; total: number };
 }
 
-export async function getStorageQuotas(token: string): Promise<StorageQuotas> {
+export async function getStorageQuotas(token: TokenSource): Promise<StorageQuotas> {
   const resp = await request(`${ADMIN_API}/environments/quotas`, token);
   return {
     productionEnvironments: Number(resp.environmentsCount?.production ?? 0),
@@ -375,7 +425,7 @@ export interface EnvironmentOperation {
 }
 
 /** All operations (app + environment) for one environment, newest first. */
-export async function getEnvironmentOperations(token: string, environment: string): Promise<EnvironmentOperation[]> {
+export async function getEnvironmentOperations(token: TokenSource, environment: string): Promise<EnvironmentOperation[]> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/operations`,
     token
@@ -385,7 +435,7 @@ export async function getEnvironmentOperations(token: string, environment: strin
 }
 
 /** Installed apps (global + PTE) — used to resolve appIds in operations to names. */
-export async function getInstalledApps(token: string, environment: string): Promise<{ appId: string; name: string; publisher: string; version: string }[]> {
+export async function getInstalledApps(token: TokenSource, environment: string): Promise<{ appId: string; name: string; publisher: string; version: string }[]> {
   const resp = await request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}/apps`,
     token
@@ -400,7 +450,7 @@ export async function getInstalledApps(token: string, environment: string): Prom
 }
 
 export async function createEnvironment(
-  token: string,
+  token: TokenSource,
   name: string,
   environmentType: 'Production' | 'Sandbox',
   countryCode: string,
@@ -422,7 +472,7 @@ export async function createEnvironment(
 }
 
 export async function copyEnvironment(
-  token: string,
+  token: TokenSource,
   sourceEnvironment: string,
   newName: string,
   type: 'Production' | 'Sandbox' = 'Sandbox'
@@ -439,7 +489,7 @@ export async function copyEnvironment(
 }
 
 /** Soft-deletes the environment (recoverable for 14 days). */
-export async function deleteEnvironment(token: string, environment: string): Promise<EnvironmentOperation> {
+export async function deleteEnvironment(token: TokenSource, environment: string): Promise<EnvironmentOperation> {
   return request(
     `${ADMIN_API}/applications/BusinessCentral/environments/${encodeURIComponent(environment)}`,
     token,
@@ -453,7 +503,7 @@ export async function deleteEnvironment(token: string, environment: string): Pro
  * (deleted) — callers should keep polling in both cases.
  */
 export async function getEnvironmentOperation(
-  token: string,
+  token: TokenSource,
   environment: string,
   operationId: string
 ): Promise<EnvironmentOperation | undefined> {
@@ -480,7 +530,7 @@ const countriesCache = new Map<string, { at: number; data: AvailableCountry[] }>
 const COUNTRIES_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Countries/regions (and rings) where new environments can be created. */
-export async function getAvailableCountries(token: string, cacheKey?: string): Promise<AvailableCountry[]> {
+export async function getAvailableCountries(token: TokenSource, cacheKey?: string): Promise<AvailableCountry[]> {
   const key = cacheKey ?? 'default';
   const hit = countriesCache.get(key);
   if (hit && Date.now() - hit.at < COUNTRIES_TTL_MS) return hit.data;
@@ -512,9 +562,19 @@ function automationUrl(tenantId: string, environment: string): string {
   return `${API_V2}/${encodeURIComponent(tenantId)}/${encodeURIComponent(environment)}/api/microsoft/automation/v2.0`;
 }
 
-export async function getCompanies(token: string, tenantId: string, environment: string): Promise<{ id: string; name: string }[]> {
+// Companies rarely change; every automation call needs one, so cache briefly.
+const COMPANIES_TTL_MS = 5 * 60 * 1000;
+const companiesCache = new Map<string, { at: number; data: { id: string; name: string }[] }>();
+
+export async function getCompanies(token: TokenSource, tenantId: string, environment: string): Promise<{ id: string; name: string }[]> {
+  const key = `${tenantId.toLowerCase()}|${environment.toLowerCase()}`;
+  const hit = companiesCache.get(key);
+  if (hit && Date.now() - hit.at < COMPANIES_TTL_MS) return hit.data;
   const resp = await request(`${automationUrl(tenantId, environment)}/companies`, token);
-  return (resp.value ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+  const data = (resp.value ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+  if (data.length > 0) companiesCache.set(key, { at: Date.now(), data });
+  else companiesCache.delete(key);
+  return data;
 }
 
 export interface InstalledExtension {
@@ -531,7 +591,7 @@ export interface InstalledExtension {
 }
 
 export async function getExtensions(
-  token: string,
+  token: TokenSource,
   tenantId: string,
   environment: string,
   companyId: string
@@ -566,7 +626,7 @@ export interface DeploymentStatusRow {
 
 /** Run a bound action (Microsoft.NAV.install / .unpublish) on an extension. */
 export async function invokeExtensionAction(
-  token: string,
+  token: TokenSource,
   tenantId: string,
   environment: string,
   companyId: string,
@@ -582,7 +642,7 @@ export async function invokeExtensionAction(
 }
 
 export async function getDeploymentStatus(
-  token: string,
+  token: TokenSource,
   tenantId: string,
   environment: string,
   companyId: string,
@@ -603,12 +663,12 @@ export interface NotificationRecipient {
   name: string;
 }
 
-export async function getNotificationRecipients(token: string): Promise<NotificationRecipient[]> {
+export async function getNotificationRecipients(token: TokenSource): Promise<NotificationRecipient[]> {
   const resp = await request(`${ADMIN_API}/settings/notification/recipients`, token);
   return (resp.value ?? []).map((r: any) => ({ id: r.id, email: r.email ?? '', name: r.name ?? '' }));
 }
 
-export async function createNotificationRecipient(token: string, email: string, name: string): Promise<NotificationRecipient> {
+export async function createNotificationRecipient(token: TokenSource, email: string, name: string): Promise<NotificationRecipient> {
   return request(
     `${ADMIN_API}/settings/notification/recipients`,
     token,
@@ -620,7 +680,7 @@ export async function createNotificationRecipient(token: string, email: string, 
   );
 }
 
-export async function deleteNotificationRecipient(token: string, id: string): Promise<void> {
+export async function deleteNotificationRecipient(token: TokenSource, id: string): Promise<void> {
   await request(
     `${ADMIN_API}/settings/notification/recipients/${encodeURIComponent(id)}`,
     token,
@@ -647,7 +707,7 @@ export interface FeatureInfo {
 }
 
 export async function getFeatures(
-  token: string,
+  token: TokenSource,
   tenantId: string,
   environment: string,
   companyId: string
@@ -669,7 +729,7 @@ export async function getFeatures(
 
 /** Activate or deactivate a feature. Activation runs any data update as a background task. */
 export async function invokeFeatureAction(
-  token: string,
+  token: TokenSource,
   tenantId: string,
   environment: string,
   companyId: string,
@@ -696,7 +756,7 @@ export async function invokeFeatureAction(
  * then poll extensionDeploymentStatus until a terminal state.
  */
 export async function publishPteImmediate(
-  token: string,
+  token: TokenSource,
   tenantId: string,
   environment: string,
   appBuffer: Buffer,
@@ -704,7 +764,7 @@ export async function publishPteImmediate(
   schemaSyncMode: 'Add' | 'Force',
   onProgress: (msg: string) => void,
   pollTimeoutMs = 15 * 60 * 1000
-): Promise<{ status: 'succeeded' | 'skipped' | 'failed'; message: string }> {
+): Promise<{ status: 'succeeded' | 'failed' | 'unknown'; message: string }> {
   const base = automationUrl(tenantId, environment);
   const authJson = { 'Content-Type': 'application/json', 'If-Match': '*' };
 
@@ -744,7 +804,18 @@ export async function publishPteImmediate(
     method: 'PATCH',
     headers: { 'Content-Type': 'application/octet-stream', 'If-Match': '*' },
     body: new Uint8Array(appBuffer)
-  }, true);
+  }, true, UPLOAD_TIMEOUT_MS);
+
+  // Snapshot existing status rows so an older deployment of the same app
+  // (e.g. a previous failed attempt) is not mistaken for this one.
+  const rowKey = (r: DeploymentStatusRow) => `${r.name ?? ''}|${r.appVersion ?? ''}|${r.startedOn ?? ''}`;
+  const before = new Set(
+    (await getDeploymentStatus(token, tenantId, environment, companyId, 20).catch(() => [] as DeploymentStatusRow[])).map(rowKey)
+  );
+  const isThisApp = (r: DeploymentStatusRow) =>
+    ((r.appId && r.appId.toLowerCase() === app.id.toLowerCase()) ||
+      (r.name && r.name.toLowerCase() === app.name.toLowerCase())) &&
+    (!r.appVersion || r.appVersion === app.version);
 
   onProgress('Publishing and installing...');
   await request(
@@ -760,10 +831,7 @@ export async function publishPteImmediate(
   while (Date.now() - started < pollTimeoutMs) {
     await new Promise(r => setTimeout(r, 5000));
     const rows = await getDeploymentStatus(token, tenantId, environment, companyId, 20).catch(() => [] as DeploymentStatusRow[]);
-    const row = rows.find(r =>
-      (r.appId && r.appId.toLowerCase() === app.id.toLowerCase()) ||
-      (r.name && r.name.toLowerCase() === app.name.toLowerCase())
-    );
+    const row = rows.find(r => isThisApp(r) && !before.has(rowKey(r)));
     if (!row) continue;
     const status = (row.status ?? '').toLowerCase();
     const detail = row.errorMessage || `${row.name ?? app.name} ${row.appVersion ?? ''}`.trim();
@@ -774,5 +842,5 @@ export async function publishPteImmediate(
     if (status === 'completed') return { status: 'succeeded', message: detail };
     if (status === 'failed') return { status: 'failed', message: detail || 'Deployment failed' };
   }
-  return { status: 'succeeded', message: 'Upload accepted; status polling timed out (check deployment status later)' };
+  return { status: 'unknown', message: 'Upload accepted, but status polling timed out. Check Deployment Status later.' };
 }

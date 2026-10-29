@@ -71,11 +71,13 @@ function runPwshScript(
   scriptPath: string,
   args: string[],
   onLine: (line: string) => void,
-  onExit: (code: number | null) => void
+  onExit: (code: number | null) => void,
+  extraEnv?: Record<string, string>
 ): void {
   const child = spawn('pwsh', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, ...args], {
     cwd: DATA_DIR,
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: extraEnv ? { ...process.env, ...extraEnv } : process.env
   });
   let buffer = '';
   const handle = (chunk: Buffer) => {
@@ -294,7 +296,8 @@ Import-Module BcContainerHelper -ErrorAction Stop
 $artifactUrl = Get-BcArtifactUrl -type ${esc(req.artifactType)} -country ${esc(req.country)} -select ${esc(req.select)}${req.version ? ` -version ${esc(req.version)}` : ''}
 if (-not $artifactUrl) { throw 'Could not resolve artifact URL.' }
 Write-Host "Artifact: $artifactUrl"
-$secure = ConvertTo-SecureString -String ${esc(req.password)} -AsPlainText -Force
+$secure = ConvertTo-SecureString -String $env:BCAC_PASSWORD -AsPlainText -Force
+Remove-Item Env:BCAC_PASSWORD -ErrorAction SilentlyContinue
 $cred = New-Object System.Management.Automation.PSCredential (${esc(req.username || 'admin')}, $secure)
 $params = @{
   containerName = ${esc(req.containerName)}
@@ -337,7 +340,7 @@ Write-Host '${RESULT_MARKER}{"status":"succeeded"}'
     run.finishedAt = new Date().toISOString();
     logLine(run, `Container creation finished (exit code ${code})`);
     fs.unlink(scriptPath, () => undefined);
-  });
+  }, { BCAC_PASSWORD: req.password });
 
   return run;
 }
