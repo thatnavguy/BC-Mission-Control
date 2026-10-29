@@ -15,7 +15,9 @@ BC Mission Control is a web page that runs on your own computer. It lets you:
 - See which app versions are installed in each environment.
 - Find and apply AppSource app updates.
 - See scheduled BC platform updates and set the maintenance window.
+- Turn Business Central features on or off in an environment.
 - See who is signed in to an environment and end stuck sessions.
+- Manage who gets email notifications about environment updates.
 - Review the app operations history of an environment.
 - Compare versions across environments to spot differences.
 - Check database storage use against your tenant quota.
@@ -128,13 +130,30 @@ See every extension installed in one environment, with its scope
 
 1. Pick a **Tenant** and **Environment**.
 2. Click **Refresh** — nothing loads until you ask.
-3. Use the filter box to find an app by name or publisher.
+3. Use the filter box to find an app by name or publisher, and the scope
+   dropdown to show only **AppSource**, **PTE**, or **Dev** apps. A red
+   **Dev** badge marks an app published straight from Visual Studio Code —
+   it bypassed the normal release process, so treat it with care.
 
 From the **Actions** column you can:
 
 - **Reinstall** a PTE that was uninstalled.
 - **Unpublish** an old PTE version.
 - **Apply update** when a newer AppSource version is available.
+
+The **Bulk actions** menu works on many apps at once, limited to the scope
+you picked in the dropdown:
+
+- **Install all** — installs the newest published version of every app that
+  is not installed yet.
+- **Unpublish old versions** — removes old published versions. The newest
+  version of each app and anything currently installed is kept.
+
+Both ask for confirmation with the exact count first. Apps are handled one
+at a time, and Business Central sorts out dependencies between them.
+Progress shows on the page and the run is saved in **History**. Installs and
+unpublishes finish in the background — check **Deployment Status** for the
+final result.
 
 ### App Updates
 
@@ -177,6 +196,29 @@ version, and set the maintenance window that updates run in.
 
 Scheduled app installs from **App Updates** also run inside this window.
 
+### Features
+
+Turn Business Central features on or off in an environment — the same list
+you see on the **Feature Management** page inside Business Central.
+
+![Features page](screenshots/features.png)
+
+1. Pick a **Tenant** and **Environment**, then click **Load features**.
+2. The table shows each feature with:
+   - **Enabled for** — *All Users* or *None*.
+   - **Automatically enabled from** — the update wave when Microsoft turns
+     the feature on for everyone, with the version.
+3. Click **Enable** or **Disable** on a feature and confirm.
+
+Some things to know:
+
+- A **Data update** badge means enabling the feature changes existing data.
+  This runs in the background and can take a while — refresh the page after
+  a few minutes to see the new state.
+- Some features are one-way: once enabled, they cannot be turned off. The
+  confirmation tells you when this applies, and an enabled one-way feature
+  shows *Cannot be disabled*.
+
 ### Compare Versions
 
 Check that the same apps are on the same version everywhere.
@@ -187,8 +229,9 @@ Check that the same apps are on the same version everywhere.
 2. Click **Compare**.
 3. Read the matrix: one row per app, one column per environment.
    - ✓ means all environments match.
-   - ✗ means versions differ (**drift**). The highest version is highlighted.
-4. Use **Show drift only** to hide apps that match everywhere.
+   - ✗ means versions differ. The highest version is highlighted.
+4. Use **Show differences only** to hide apps that match everywhere. The
+   name and publisher boxes filter the loaded results as you type.
 
 ### Deployment Status
 
@@ -250,6 +293,18 @@ stuck.
 
 > **Warning:** Ending a session throws the user out immediately. Unsaved work
 > in that session is lost.
+
+### Notifications
+
+Choose who gets email notifications about environment updates and events.
+Recipients are set per tenant, not per environment.
+
+![Notifications page](screenshots/notifications.png)
+
+1. Pick a **Tenant**, then click **Load recipients**.
+2. To add someone, enter their **Name** and **Email**, then click
+   **Add recipient**.
+3. To stop someone's emails, click **Remove** next to them and confirm.
 
 ### API Explorer
 

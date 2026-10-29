@@ -53,8 +53,10 @@ deploy); this product is both, in one local app.
 - **Cloud:** tenant/environment management, PTE deployment (immediate or
   update-window scheduled, schema sync mode, dependency-ordered), extension
   browsing with scope badges, reinstall/unpublish/apply AppSource updates,
-  cross-environment version comparison with drift detection, deployment
-  status with error messages, API Explorer (allowlisted to
+  bulk install/unpublish of extensions, per-environment feature management
+  (enable/disable), tenant notification recipients, cross-environment
+  version comparison with difference detection, deployment status with
+  error messages, API Explorer (allowlisted to
   `api.businesscentral.dynamics.com`).
 - **Container:** PTE deployment to local containers, friendly-name container
   mapping with live status, container creation form (artifacts, credentials,

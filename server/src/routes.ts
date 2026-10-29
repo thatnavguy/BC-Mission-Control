@@ -7,7 +7,7 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getFeatures, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, invokeFeatureAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getFeatures, getInstalledApps, getNotificationRecipients, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, createNotificationRecipient, deleteNotificationRecipient, invokeExtensionAction, invokeFeatureAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, cancelRun, DeployRequest } from './deploy';
 import { loadCallHistory, recordCall, clearCallHistory } from './callHistory';
@@ -217,6 +217,40 @@ router.post('/extensions/bulk', asyncWrap(async (req, res) => {
     scope: typeof body.scope === 'string' ? body.scope : 'all'
   });
   res.json(run);
+}));
+
+// ── Notification recipients (tenant level) ───────────────────────────────
+
+router.get('/notification-recipients', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  if (!tenantId) { res.status(400).json({ error: 'tenantId is required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  res.json(await getNotificationRecipients(token));
+}));
+
+router.put('/notification-recipients', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const { tenantId, email, name } = req.body ?? {};
+  if (!tenantId || !email || !name) {
+    res.status(400).json({ error: 'tenantId, email and name are required' });
+    return;
+  }
+  if (!/^\S+@\S+\.\S+$/.test(String(email))) {
+    res.status(400).json({ error: 'email is not valid' });
+    return;
+  }
+  const token = await getAccessToken(effectiveClientId(s.clientId), String(tenantId));
+  res.json(await createNotificationRecipient(token, String(email).trim(), String(name).trim()));
+}));
+
+router.delete('/notification-recipients/:id', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  if (!tenantId) { res.status(400).json({ error: 'tenantId is required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  await deleteNotificationRecipient(token, req.params.id);
+  res.json({ ok: true });
 }));
 
 // ── App updates ──────────────────────────────────────────────────────────

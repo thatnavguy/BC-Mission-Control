@@ -7,7 +7,7 @@ import {
   AppsList24Regular, Grid24Regular, PlugConnected24Regular, Pulse24Regular,
   Cube24Regular, Rocket24Regular, Globe24Regular, ArrowClockwise24Regular,
   Database24Regular, DocumentBulletList24Regular, CalendarSync24Regular,
-  PersonDesktopRegular, ToggleLeft24Regular
+  PersonDesktopRegular, ToggleLeft24Regular, MailAlert24Regular
 } from '@fluentui/react-icons';
 import { fox } from './theme';
 import DeployPage from './pages/DeployPage';
@@ -26,6 +26,7 @@ import OperationsPage from './pages/OperationsPage';
 import UpdateManagementPage from './pages/UpdateManagementPage';
 import SessionsPage from './pages/SessionsPage';
 import FeaturesPage from './pages/FeaturesPage';
+import NotificationsPage from './pages/NotificationsPage';
 
 const useStyles = makeStyles({
   shell: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ffffff' },
@@ -86,9 +87,9 @@ const useStyles = makeStyles({
   }
 });
 
-type PageKey = 'environments' | 'deploy' | 'apps' | 'updates' | 'bcupdates' | 'features' | 'sessions' | 'compare' | 'status' | 'operations' | 'storage' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
+type PageKey = 'environments' | 'deploy' | 'apps' | 'updates' | 'bcupdates' | 'features' | 'sessions' | 'notifications' | 'compare' | 'status' | 'operations' | 'storage' | 'api' | 'cdeploy' | 'containers' | 'history' | 'setup';
 
-const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'bcupdates', 'features', 'sessions', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'];
+const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'bcupdates', 'features', 'sessions', 'notifications', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'];
 
 export default function App() {
   const styles = useStyles();
@@ -132,6 +133,7 @@ export default function App() {
           <Tab value="bcupdates" icon={<CalendarSync24Regular />}>BC Updates</Tab>
           <Tab value="features" icon={<ToggleLeft24Regular />}>Features</Tab>
           <Tab value="sessions" icon={<PersonDesktopRegular />}>Sessions</Tab>
+          <Tab value="notifications" icon={<MailAlert24Regular />}>Notifications</Tab>
           <Tab value="compare" icon={<Grid24Regular />}>Compare Versions</Tab>
           <Tab value="status" icon={<Pulse24Regular />}>Deployment Status</Tab>
           <Tab value="operations" icon={<DocumentBulletList24Regular />}>App Operations</Tab>
@@ -154,6 +156,7 @@ export default function App() {
           {page === 'bcupdates' && <UpdateManagementPage />}
           {page === 'features' && <FeaturesPage />}
           {page === 'sessions' && <SessionsPage />}
+          {page === 'notifications' && <NotificationsPage />}
           {page === 'compare' && <ComparePage />}
           {page === 'status' && <StatusPage />}
           {page === 'operations' && <OperationsPage />}

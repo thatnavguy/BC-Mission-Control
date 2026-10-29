@@ -595,6 +595,40 @@ export async function getDeploymentStatus(
   return resp.value ?? [];
 }
 
+// ── Notification recipients (Admin Center API, tenant level) ─────────────────
+
+export interface NotificationRecipient {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export async function getNotificationRecipients(token: string): Promise<NotificationRecipient[]> {
+  const resp = await request(`${ADMIN_API}/settings/notification/recipients`, token);
+  return (resp.value ?? []).map((r: any) => ({ id: r.id, email: r.email ?? '', name: r.name ?? '' }));
+}
+
+export async function createNotificationRecipient(token: string, email: string, name: string): Promise<NotificationRecipient> {
+  return request(
+    `${ADMIN_API}/settings/notification/recipients`,
+    token,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name })
+    }
+  );
+}
+
+export async function deleteNotificationRecipient(token: string, id: string): Promise<void> {
+  await request(
+    `${ADMIN_API}/settings/notification/recipients/${encodeURIComponent(id)}`,
+    token,
+    { method: 'DELETE' },
+    true
+  );
+}
+
 // ── Feature management (Automation API) ──────────────────────────────────────
 
 export interface FeatureInfo {

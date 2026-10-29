@@ -214,6 +214,12 @@ export interface FeatureInfo {
   dataUpdateRequired?: boolean;
 }
 
+export interface NotificationRecipient {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   savedAt?: string;

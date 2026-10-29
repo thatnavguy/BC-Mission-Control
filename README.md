@@ -31,19 +31,25 @@ instructions with screenshots for every page.
   per-target progress. Apps deploy in dependency order.
 - **Apps page** — browse extensions in an environment with scope badges
   (PTE / Dev / AppSource). Reinstall uninstalled PTEs, unpublish old PTE
-  versions, and apply AppSource updates — all from one table. Manual Refresh;
-  nothing is fetched until you ask.
+  versions, and apply AppSource updates — all from one table. Scope filter
+  plus **Bulk actions** (install all / unpublish old versions) as background
+  runs. Manual Refresh; nothing is fetched until you ask.
 - **App Updates page** — check an environment for available AppSource updates,
   then apply them now (with live progress) or schedule them into the update
   window. Dependencies are handled automatically.
 - **BC Updates page** — upcoming platform versions per environment with
   release and rollout status. Select the target version (optionally with a
   date) and edit the maintenance window (start/end time + time zone).
+- **Features page** — Feature Management per environment: see which BC
+  features are enabled, the wave they become mandatory, and enable/disable
+  them (with data-update and one-way warnings).
 - **Sessions page** — active sessions per environment (user, client type,
   current object, operation duration) with one-click disconnect after
   confirmation.
+- **Notifications page** — manage the tenant's notification recipients: who
+  gets email about environment updates and events.
 - **Compare Versions page** — pick which tenants/environments to scan, then
-  compare installed versions in a matrix with drift detection
+  compare installed versions in a matrix with difference detection
   (✓ Same / ✗ Different) and the latest version highlighted.
 - **App Operations page** — audit log of app installs, updates, uninstalls,
   and hotfixes per environment, with actor, error details, and period/type
@@ -76,8 +82,10 @@ it serves) and `DESIGN.md` (the visual system: tokens, surfaces, rules).
 server/   Express + TypeScript backend (port 4321)
           - OAuth2 device code flow against login.microsoftonline.com
           - Admin Center API  v2.29  (environments, app updates, platform
-                                     updates, sessions, storage, PTE install)
-          - Automation API    v2.0   (extension upload, install/unpublish, status)
+                                     updates, sessions, storage, PTE install,
+                                     notification recipients)
+          - Automation API    v2.0   (extension upload, install/unpublish,
+                                     status, feature management)
           - container actions spawn local pwsh + BcContainerHelper
 web/      React + TypeScript + Vite + Fluent UI (port 5173 in dev)
 ```
