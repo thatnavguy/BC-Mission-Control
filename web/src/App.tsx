@@ -115,7 +115,7 @@ export default function App() {
 
   return (
     <div className={styles.shell}>
-      <nav className={styles.nav}>
+      <nav className={styles.nav} aria-label="Primary navigation">
         <div className={styles.brand}>
           <img src="/mascot-mark.png" alt="" className={styles.mark} />
           <div className={styles.brandText}>
@@ -131,25 +131,25 @@ export default function App() {
           size="large"
         >
           <div className={styles.section}>Cloud</div>
-          <Tab value="environments" icon={<Globe24Regular />}>Environments</Tab>
-          <Tab value="deploy" icon={<ArrowUpload24Regular />}>PTE Deployment</Tab>
-          <Tab value="apps" icon={<AppsList24Regular />}>Apps</Tab>
-          <Tab value="updates" icon={<ArrowClockwise24Regular />}>App Updates</Tab>
-          <Tab value="bcupdates" icon={<CalendarSync24Regular />}>BC Updates</Tab>
-          <Tab value="features" icon={<ToggleLeft24Regular />}>Features</Tab>
-          <Tab value="sessions" icon={<PersonDesktopRegular />}>Sessions</Tab>
-          <Tab value="notifications" icon={<MailAlert24Regular />}>Notifications</Tab>
-          <Tab value="compare" icon={<Grid24Regular />}>Compare Versions</Tab>
-          <Tab value="status" icon={<Pulse24Regular />}>Deployment Status</Tab>
-          <Tab value="operations" icon={<DocumentBulletList24Regular />}>App Operations</Tab>
-          <Tab value="storage" icon={<Database24Regular />}>Storage</Tab>
-          <Tab value="api" icon={<PlugConnected24Regular />}>API Explorer</Tab>
+          <Tab value="environments" icon={<Globe24Regular />} aria-label="Cloud: Environments" title="Cloud: Environments">Environments</Tab>
+          <Tab value="deploy" icon={<ArrowUpload24Regular />} aria-label="Cloud: PTE Deployment" title="Cloud: PTE Deployment">PTE Deployment</Tab>
+          <Tab value="apps" icon={<AppsList24Regular />} aria-label="Cloud: Apps" title="Cloud: Apps">Apps</Tab>
+          <Tab value="updates" icon={<ArrowClockwise24Regular />} aria-label="Cloud: App Updates" title="Cloud: App Updates">App Updates</Tab>
+          <Tab value="bcupdates" icon={<CalendarSync24Regular />} aria-label="Cloud: BC Updates" title="Cloud: BC Updates">BC Updates</Tab>
+          <Tab value="features" icon={<ToggleLeft24Regular />} aria-label="Cloud: Features" title="Cloud: Features">Features</Tab>
+          <Tab value="sessions" icon={<PersonDesktopRegular />} aria-label="Cloud: Sessions" title="Cloud: Sessions">Sessions</Tab>
+          <Tab value="notifications" icon={<MailAlert24Regular />} aria-label="Cloud: Notifications" title="Cloud: Notifications">Notifications</Tab>
+          <Tab value="compare" icon={<Grid24Regular />} aria-label="Cloud: Compare Versions" title="Cloud: Compare Versions">Compare Versions</Tab>
+          <Tab value="status" icon={<Pulse24Regular />} aria-label="Cloud: Deployment Status" title="Cloud: Deployment Status">Deployment Status</Tab>
+          <Tab value="operations" icon={<DocumentBulletList24Regular />} aria-label="Cloud: App Operations" title="Cloud: App Operations">App Operations</Tab>
+          <Tab value="storage" icon={<Database24Regular />} aria-label="Cloud: Storage" title="Cloud: Storage">Storage</Tab>
+          <Tab value="api" icon={<PlugConnected24Regular />} aria-label="Cloud: API Explorer" title="Cloud: API Explorer">API Explorer</Tab>
           <div className={styles.section}>Container</div>
-          <Tab value="cdeploy" icon={<Rocket24Regular />}>PTE Deployment</Tab>
-          <Tab value="containers" icon={<Cube24Regular />}>Containers</Tab>
+          <Tab value="cdeploy" icon={<Rocket24Regular />} aria-label="Container: PTE Deployment" title="Container: PTE Deployment">PTE Deployment</Tab>
+          <Tab value="containers" icon={<Cube24Regular />} aria-label="Container: Containers" title="Container: Containers">Containers</Tab>
           <div className={styles.section}>General</div>
-          <Tab value="history" icon={<History24Regular />}>History</Tab>
-          <Tab value="setup" icon={<Settings24Regular />}>Setup</Tab>
+          <Tab value="history" icon={<History24Regular />} aria-label="General: History" title="General: History">History</Tab>
+          <Tab value="setup" icon={<Settings24Regular />} aria-label="General: Setup" title="General: Setup">Setup</Tab>
         </TabList>
       </nav>
       <main className={styles.content} key={page}>
