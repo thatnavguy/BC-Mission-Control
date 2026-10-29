@@ -33,6 +33,7 @@ function kindBadge(kind: DeployRun['kind']) {
   if (kind === 'container') return <Badge appearance="outline" color="informative">Container</Badge>;
   if (kind === 'container-create') return <Badge appearance="outline" color="informative">Create</Badge>;
   if (kind === 'app-update') return <Badge appearance="outline" color="important">App update</Badge>;
+  if (kind === 'ext-bulk') return <Badge appearance="outline" color="important">Bulk apps</Badge>;
   if (kind === 'environment') return <Badge appearance="outline" color="important">Environment</Badge>;
   return <Badge appearance="outline" color="brand">Cloud</Badge>;
 }

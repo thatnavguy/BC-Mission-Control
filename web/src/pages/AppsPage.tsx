@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Badge, Button, Card, Input, makeStyles, MessageBar, MessageBarBody,
-  Spinner, Table, TableBody, TableCell, TableHeader, TableHeaderCell,
-  TableRow, Text, Title2, tokens
+  Badge, Button, Card, Dialog, DialogActions, DialogBody, DialogContent,
+  DialogSurface, DialogTitle, Dropdown, Input, makeStyles, Menu, MenuButton,
+  MenuItem, MenuList, MenuPopover, MenuTrigger, MessageBar,
+  MessageBarBody, Option, Spinner, Table, TableBody, TableCell, TableHeader,
+  TableHeaderCell, TableRow, Text, Title2, tokens
 } from '@fluentui/react-components';
 import {
   ArrowDownload24Regular, ArrowSync24Regular, Delete24Regular, Search24Regular
 } from '@fluentui/react-icons';
-import { api } from '../api';
+import { api, subscribeRuns } from '../api';
 import EmptyState from '../components/EmptyState';
 import { useSharedStyles } from '../theme';
-import { AuthStatus, Settings } from '../types';
+import { AuthStatus, DeployRun, Settings } from '../types';
 import TargetPicker, { TargetSelection } from '../components/TargetPicker';
 
 const useStyles = makeStyles({
@@ -43,10 +45,52 @@ function compareVersions(a: Extension, b: Extension): number {
 }
 
 function scopeBadge(scope: string) {
-  const s = scope || 'PTE';
+  const s = (scope || 'PTE').trim() || 'PTE';
   if (s === 'Global') return <Badge appearance="outline" color="brand">AppSource</Badge>;
-  if (s === 'Dev') return <Badge appearance="outline" color="warning">Dev</Badge>;
+  if (s === 'Dev') return <Badge appearance="outline" color="danger">Dev</Badge>;
   return <Badge appearance="outline" color="success">PTE</Badge>;
+}
+
+const SCOPE_LABELS: Record<string, string> = { all: 'All scopes', Global: 'AppSource', PTE: 'PTE', Dev: 'Dev' };
+
+function scopeOf(e: Extension): string {
+  return (e.publishedAs || 'PTE').trim() || 'PTE';
+}
+
+/** Mirrors pickBulkTargets on the server — used only for the confirm-dialog count. */
+function bulkTargets(list: Extension[], action: 'install-all' | 'unpublish-old', scope: string): Extension[] {
+  const byId = new Map<string, Extension[]>();
+  for (const e of list) {
+    const key = e.id.toLowerCase();
+    if (!byId.has(key)) byId.set(key, []);
+    byId.get(key)!.push(e);
+  }
+  const items: Extension[] = [];
+  for (const versions of byId.values()) {
+    const sorted = [...versions].sort(compareVersions);
+    const latest = sorted[sorted.length - 1];
+    if (!latest) continue;
+    if (action === 'install-all') {
+      if (!latest.isInstalled && (scope === 'all' || scopeOf(latest).toLowerCase() === scope.toLowerCase())) items.push(latest);
+    } else {
+      for (const v of sorted) {
+        if (v.packageId === latest.packageId || v.isInstalled) continue;
+        if (scopeOf(v) === 'Global') continue;
+        if (scope !== 'all' && scopeOf(v).toLowerCase() !== scope.toLowerCase()) continue;
+        items.push(v);
+      }
+    }
+  }
+  return items;
+}
+
+function resultBadge(status: string) {
+  switch (status) {
+    case 'running': return <Badge appearance="filled" color="warning">Running</Badge>;
+    case 'succeeded': return <Badge appearance="filled" color="success">Succeeded</Badge>;
+    case 'failed': return <Badge appearance="filled" color="danger">Failed</Badge>;
+    default: return <Badge appearance="outline">{status}</Badge>;
+  }
 }
 
 export default function AppsPage() {
@@ -59,6 +103,18 @@ export default function AppsPage() {
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState('');
   const [filter, setFilter] = useState('');
+  const [scopeSel, setScopeSel] = useState('all');
+  const [bulkConfirm, setBulkConfirm] = useState<'install-all' | 'unpublish-old' | null>(null);
+  const [activeRun, setActiveRun] = useState<DeployRun | null>(null);
+
+  // Track live progress of bulk extension runs
+  useEffect(() => subscribeRuns(run => {
+    if (run.kind !== 'ext-bulk') return;
+    setActiveRun(prev => {
+      if (prev && prev.id !== run.id && prev.status === 'running') return prev;
+      return run;
+    });
+  }), []);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -118,6 +174,27 @@ export default function AppsPage() {
     }
   };
 
+  const startBulk = async () => {
+    if (!target || !bulkConfirm) return;
+    setError('');
+    try {
+      const run = await api.post<DeployRun>('/api/extensions/bulk', {
+        tenantId: target.tenantId,
+        environment: target.environment,
+        action: bulkConfirm,
+        scope: scopeSel
+      });
+      setActiveRun(run);
+      setBulkConfirm(null);
+    } catch (e: any) {
+      setError(e.message);
+      setBulkConfirm(null);
+    }
+  };
+
+  const bulkCount = bulkConfirm ? bulkTargets(extensions, bulkConfirm, scopeSel).length : 0;
+  const runFinished = activeRun && activeRun.status !== 'running';
+
   // Group by app id to find AppSource updates: installed + a newer published version exists
   const updatable = useMemo(() => {
     const byId = new Map<string, Extension[]>();
@@ -141,13 +218,12 @@ export default function AppsPage() {
 
   const filtered = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    const list = f
-      ? extensions.filter(e =>
-          e.displayName?.toLowerCase().includes(f) || e.publisher?.toLowerCase().includes(f))
-      : extensions;
+    const list = extensions.filter(e =>
+      (!f || e.displayName?.toLowerCase().includes(f) || e.publisher?.toLowerCase().includes(f)) &&
+      (scopeSel === 'all' || scopeOf(e) === scopeSel));
     return [...list].sort((a, b) =>
       a.displayName.localeCompare(b.displayName) || compareVersions(b, a));
-  }, [extensions, filter]);
+  }, [extensions, filter, scopeSel]);
 
   if (!settings) return <Spinner label="Loading..." />;
 
@@ -177,6 +253,37 @@ export default function AppsPage() {
             onChange={(_e, d) => setFilter(d.value)}
             style={{ minWidth: '260px' }}
           />
+          <Dropdown
+            value={SCOPE_LABELS[scopeSel]}
+            selectedOptions={[scopeSel]}
+            onOptionSelect={(_e, d) => setScopeSel(String(d.optionValue ?? 'all'))}
+            style={{ minWidth: '150px' }}
+          >
+            <Option value="all">All scopes</Option>
+            <Option value="Global">AppSource</Option>
+            <Option value="PTE">PTE</Option>
+            <Option value="Dev">Dev</Option>
+          </Dropdown>
+          <Menu>
+            <MenuTrigger disableButtonEnhancement>
+              <MenuButton
+                appearance="secondary"
+                disabled={loading || extensions.length === 0 || activeRun?.status === 'running'}
+              >
+                Bulk actions
+              </MenuButton>
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList>
+                <MenuItem icon={<ArrowDownload24Regular />} onClick={() => setBulkConfirm('install-all')}>
+                  Install all
+                </MenuItem>
+                <MenuItem icon={<Delete24Regular />} onClick={() => setBulkConfirm('unpublish-old')}>
+                  Unpublish old versions
+                </MenuItem>
+              </MenuList>
+            </MenuPopover>
+          </Menu>
         </div>
       </Card>
 
@@ -281,6 +388,71 @@ export default function AppsPage() {
           />
         )}
       </Card>
+
+      {activeRun && (
+        <Card className={shared.card}>
+          <Text weight="semibold">
+            Bulk run — {activeRun.status === 'running' ? 'in progress' : activeRun.status}
+          </Text>
+          <Table size="small" style={{ marginTop: '8px' }}>
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Extension</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Detail</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeRun.results.map((r, i) => (
+                <TableRow key={i}>
+                  <TableCell>{r.appFile}</TableCell>
+                  <TableCell>{resultBadge(r.status)}</TableCell>
+                  <TableCell>{r.message}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {runFinished && (
+            <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <Button icon={<ArrowSync24Regular />} onClick={load}>Refresh list</Button>
+              <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                Installs and unpublishes finish in the background — see Deployment Status for outcomes.
+              </Text>
+            </div>
+          )}
+        </Card>
+      )}
+
+      <Dialog open={!!bulkConfirm} onOpenChange={(_e, d) => { if (!d.open) setBulkConfirm(null); }}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>
+              {bulkConfirm === 'install-all' ? 'Install all' : 'Unpublish old versions'}
+            </DialogTitle>
+            <DialogContent>
+              {bulkConfirm === 'install-all' ? (
+                <>
+                  Install the latest published version of <strong>{bulkCount} app(s)</strong> on{' '}
+                  <strong>{target?.environment}</strong> (scope: {SCOPE_LABELS[scopeSel]})?
+                  They are submitted one at a time; Business Central resolves dependencies.
+                </>
+              ) : (
+                <>
+                  Unpublish <strong>{bulkCount} old version(s)</strong> on{' '}
+                  <strong>{target?.environment}</strong> (scope: {SCOPE_LABELS[scopeSel]})?
+                  The latest version of each app and anything currently installed is kept.
+                </>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setBulkConfirm(null)}>Cancel</Button>
+              <Button appearance="primary" disabled={bulkCount === 0} onClick={startBulk}>
+                {bulkConfirm === 'install-all' ? `Install ${bulkCount} app(s)` : `Unpublish ${bulkCount} version(s)`}
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
     </div>
   );
 }

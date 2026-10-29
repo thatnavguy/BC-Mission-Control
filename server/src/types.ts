@@ -49,7 +49,7 @@ export interface StagedApp {
 export type ScheduleOption = 'Immediate' | 'UpdateWindow';
 export type SchemaSyncOption = 'Add' | 'Force';
 export type ContainerSyncMode = 'Add' | 'Clean' | 'Development';
-export type RunKind = 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment';
+export type RunKind = 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment' | 'ext-bulk';
 
 export type TargetStatus =
   | 'pending'

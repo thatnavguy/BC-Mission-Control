@@ -54,7 +54,7 @@ export interface DeployTargetResult {
 
 export interface DeployRun {
   id: string;
-  kind: 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment';
+  kind: 'cloud' | 'container' | 'container-create' | 'app-update' | 'environment' | 'ext-bulk';
   startedAt: string;
   finishedAt?: string;
   status: 'waiting' | 'running' | 'completed' | 'completed-with-errors' | 'failed' | 'canceled';

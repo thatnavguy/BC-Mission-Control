@@ -11,7 +11,7 @@ import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdate
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, cancelRun, DeployRequest } from './deploy';
 import { loadCallHistory, recordCall, clearCallHistory } from './callHistory';
-import { startAppUpdateRun, startEnvironmentRun } from './ops';
+import { startAppUpdateRun, startBulkExtensionRun, startEnvironmentRun } from './ops';
 import { parseAppManifest } from './appManifest';
 import { StagedApp, TenantConfig, ContainerConfig } from './types';
 import {
@@ -206,6 +206,17 @@ router.post('/features/:action(activate|deactivate)', asyncWrap(async (req, res)
   if (companies.length === 0) { res.status(404).json({ error: 'No companies in environment' }); return; }
   await invokeFeatureAction(token, String(tenantId), String(environment), companies[0].id, String(featureId), req.params.action as 'activate' | 'deactivate');
   res.json({ ok: true });
+}));
+
+router.post('/extensions/bulk', asyncWrap(async (req, res) => {
+  const body = req.body ?? {};
+  const run = await startBulkExtensionRun({
+    tenantId: String(body.tenantId ?? ''),
+    environment: String(body.environment ?? ''),
+    action: body.action === 'unpublish-old' ? 'unpublish-old' : 'install-all',
+    scope: typeof body.scope === 'string' ? body.scope : 'all'
+  });
+  res.json(run);
 }));
 
 // ── App updates ──────────────────────────────────────────────────────────

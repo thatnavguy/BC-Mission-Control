@@ -3,7 +3,8 @@ import { loadSettings } from './store';
 import { effectiveClientId, getAccessToken } from './auth';
 import {
   copyEnvironment, createEnvironment, deleteEnvironment,
-  getAppOperation, getEnvironmentOperation, listEnvironments, updateApp
+  getAppOperation, getCompanies, getEnvironmentOperation, getExtensions,
+  invokeExtensionAction, InstalledExtension, listEnvironments, updateApp
 } from './bcClient';
 import { emitRun, registerRun } from './deploy';
 import { DeployRun, DeployTargetResult, EnvironmentInfo } from './types';
@@ -266,5 +267,128 @@ async function executeEnvironmentOp(run: DeployRun, req: EnvironmentManageReques
   } catch (err: any) {
     setResult(run, result, { status: 'failed', message: err.message }, `failed — ${err.message}`);
   }
+  finishRun(run);
+}
+
+// ── Bulk extension actions ───────────────────────────────────────────────────
+
+const BULK_ACTION_DELAY_MS = 1500;
+
+export interface BulkExtensionRequest {
+  tenantId: string;
+  environment: string;
+  action: 'install-all' | 'unpublish-old';
+  /** Scope filter from the Apps page: 'all' | 'Global' | 'PTE' | 'Dev' */
+  scope?: string;
+}
+
+function extVersion(e: InstalledExtension): string {
+  return `${e.versionMajor}.${e.versionMinor}.${e.versionBuild}.${e.versionRevision}`;
+}
+
+function compareExt(a: InstalledExtension, b: InstalledExtension): number {
+  return (
+    a.versionMajor - b.versionMajor || a.versionMinor - b.versionMinor ||
+    a.versionBuild - b.versionBuild || a.versionRevision - b.versionRevision
+  );
+}
+
+/**
+ * Pick the extensions a bulk action applies to.
+ * install-all:    latest published version of each app not already installed at that version.
+ * unpublish-old:  every not-installed, non-Global version except each app's latest.
+ */
+function pickBulkTargets(extensions: InstalledExtension[], req: BulkExtensionRequest): InstalledExtension[] {
+  const scope = req.scope ?? 'all';
+  const inScope = (e: InstalledExtension) => scope === 'all' || e.publishedAs.toLowerCase() === scope.toLowerCase();
+  const byId = new Map<string, InstalledExtension[]>();
+  for (const e of extensions) {
+    const key = e.id.toLowerCase();
+    if (!byId.has(key)) byId.set(key, []);
+    byId.get(key)!.push(e);
+  }
+  const items: InstalledExtension[] = [];
+  for (const versions of byId.values()) {
+    const sorted = [...versions].sort(compareExt);
+    const latest = sorted[sorted.length - 1];
+    if (!latest) continue;
+    if (req.action === 'install-all') {
+      if (!latest.isInstalled && inScope(latest)) items.push(latest);
+    } else {
+      for (const v of sorted) {
+        if (v.packageId === latest.packageId || v.isInstalled) continue;
+        if (v.publishedAs === 'Global') continue; // AppSource apps can't be unpublished
+        if (!inScope(v)) continue;
+        items.push(v);
+      }
+    }
+  }
+  return items.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+export async function startBulkExtensionRun(req: BulkExtensionRequest): Promise<DeployRun> {
+  const settings = loadSettings();
+  const tenant = settings.tenants.find(t => t.id === req.tenantId);
+  if (!tenant) throw new Error(`Unknown tenant: ${req.tenantId}`);
+  if (!req.environment) throw new Error('Environment is required');
+
+  const token = await getAccessToken(effectiveClientId(settings.clientId), req.tenantId);
+  const companies = await getCompanies(token, req.tenantId, req.environment);
+  if (companies.length === 0) throw new Error('No companies in environment');
+  const companyId = companies[0].id;
+
+  const items = pickBulkTargets(await getExtensions(token, req.tenantId, req.environment, companyId), req);
+  if (items.length === 0) {
+    throw new Error(req.action === 'install-all'
+      ? 'Nothing to install — every app in scope is already installed at its latest published version'
+      : 'Nothing to clean up — no old versions in scope');
+  }
+
+  const run: DeployRun = {
+    id: randomUUID(),
+    kind: 'ext-bulk',
+    startedAt: new Date().toISOString(),
+    status: 'running',
+    results: items.map(e => ({
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      environment: req.environment,
+      appFile: `${e.displayName} ${extVersion(e)}`,
+      status: 'pending',
+      message: '',
+      updatedAt: new Date().toISOString()
+    })),
+    log: []
+  };
+  registerRun(run);
+  const label = req.action === 'install-all' ? 'Install all' : 'Unpublish old versions';
+  logLine(run, `${label} started — ${items.length} extension(s) on ${tenant.name}/${req.environment}, scope ${req.scope ?? 'all'}`);
+
+  executeBulk(run, req, token, companyId, items).catch(err => failFatally(run, err));
+  return run;
+}
+
+async function executeBulk(
+  run: DeployRun,
+  req: BulkExtensionRequest,
+  token: string,
+  companyId: string,
+  items: InstalledExtension[]
+): Promise<void> {
+  // Installs/unpublishes are queued by BC and complete in the background;
+  // outcomes are visible on the Deployment Status page.
+  const navAction = req.action === 'install-all' ? 'install' : 'unpublish';
+  for (let i = 0; i < items.length; i++) {
+    const result = run.results[i];
+    try {
+      setResult(run, result, { status: 'running', message: 'Submitting...' });
+      await invokeExtensionAction(token, req.tenantId, req.environment, companyId, items[i].packageId, navAction);
+      setResult(run, result, { status: 'succeeded', message: 'Submitted — track in Deployment Status' }, 'submitted');
+    } catch (err: any) {
+      setResult(run, result, { status: 'failed', message: err.message }, `failed — ${err.message}`);
+    }
+    if (i < items.length - 1) await sleep(BULK_ACTION_DELAY_MS);
+  }
+  logLine(run, 'All actions submitted. Installs/unpublishes finish in the background — check Deployment Status.');
   finishRun(run);
 }

@@ -547,7 +547,8 @@ export async function getExtensions(
     versionBuild: e.versionBuild,
     versionRevision: e.versionRevision,
     isInstalled: !!e.isInstalled,
-    publishedAs: e.publishedAs ?? ''
+    // The API returns scope values with a leading space (' Dev', ' PTE')
+    publishedAs: String(e.publishedAs ?? '').trim()
   }));
 }
 
