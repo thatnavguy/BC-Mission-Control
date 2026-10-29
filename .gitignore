@@ -1,6 +1,8 @@
 node_modules/
 dist/
 server/data/
+server/build/
+server/src/webAssets.generated.js
 .playwright-mcp/
 *.tsbuildinfo
 .impeccable/

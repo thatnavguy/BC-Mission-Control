@@ -92,7 +92,25 @@ web/      React + TypeScript + Vite + Fluent UI (port 5173 in dev)
 
 Data (settings, token, uploaded apps) lives in `server/data/` — keep it private.
 
-## Prerequisites
+## Option 1 — Download the exe (easiest, no install)
+
+1. Download `BCMissionControl.exe` from the
+   [latest release](https://github.com/thatnavguy/BC-Mission-Control/releases/latest).
+2. Double-click it. Windows SmartScreen may warn because the exe is not
+   code-signed — click **More info → Run anyway** (this is expected; see the
+   release notes).
+3. Your browser opens http://127.0.0.1:4321. Keep the console window open
+   while using the app. Settings, sign-in token, and uploaded apps are stored
+   per-user in `%APPDATA%\BCMissionControl`. Prefer portable mode instead?
+   Create an empty `data` folder next to the exe before first run and it will
+   be used instead.
+
+To update: download the newer exe and replace the old one — your data is kept
+either way.
+
+## Option 2 — Run from source
+
+### Prerequisites
 
 - [Node.js](https://nodejs.org/en/download) 18 or later. Choose the **LTS
   (Long Term Support)** version. The installer includes npm.
@@ -100,7 +118,7 @@ Data (settings, token, uploaded apps) lives in `server/data/` — keep it privat
 - Container section additionally needs: Docker Desktop, PowerShell 7 (`pwsh`),
   and `Install-Module BcContainerHelper`.
 
-## Getting Started
+### Getting Started
 
 1. Get the code:
 
@@ -139,6 +157,18 @@ Development mode (hot reload):
 npm run dev:server   # terminal 1 — API on 4321
 npm run dev:web      # terminal 2 — UI on 5173 (proxies /api to 4321)
 ```
+
+## Building the exe yourself
+
+```powershell
+npm run setup
+npm run build:exe    # output: server/build/BCMissionControl.exe
+```
+
+This bundles the server with esbuild, embeds the built web UI, and injects
+everything into a Node single-executable application (SEA). Pushing a tag like
+`v0.2.0` triggers the [release workflow](.github/workflows/release.yml), which
+builds the exe on GitHub Actions and attaches it to the release.
 
 ## License
 

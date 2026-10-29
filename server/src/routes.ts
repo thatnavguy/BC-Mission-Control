@@ -49,9 +49,14 @@ router.put('/settings', (req, res) => {
       return res.status(400).json({ error: 'Each container needs name and containerName' });
     }
   }
+  const port = Number(body.port);
+  if (body.port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+    return res.status(400).json({ error: 'port must be an integer between 1 and 65535' });
+  }
   saveSettings({
     clientId: body.clientId.trim(),
     tokenValidityDays: Number(body.tokenValidityDays) || 80,
+    port: Number.isInteger(port) && port >= 1 && port <= 65535 ? port : 4321,
     tenants,
     containers: containers.map(c => ({ name: c.name, containerName: c.containerName, enabled: c.enabled !== false })),
     containerDefaults: {

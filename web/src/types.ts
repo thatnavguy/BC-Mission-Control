@@ -13,6 +13,7 @@ export interface ContainerConfig {
 export interface Settings {
   clientId: string;
   tokenValidityDays: number;
+  port: number;
   tenants: TenantConfig[];
   containers: ContainerConfig[];
   containerDefaults: {

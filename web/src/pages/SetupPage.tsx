@@ -239,6 +239,25 @@ export default function SetupPage() {
       </Card>
 
       <Card className={shared.card}>
+        <Title3>Application</Title3>
+        <Text block size={200} style={{ marginTop: '6px', color: '#6b6a68' }}>
+          The port the app listens on. Applies the next time you start BC Mission
+          Control — restart after changing it.
+        </Text>
+        <div className={styles.row} style={{ marginTop: '12px' }}>
+          <Field label="Port">
+            <Input
+              type="number"
+              style={{ width: '110px' }}
+              value={String(settings.port)}
+              onChange={(_e, d) => setSettings({ ...settings, port: Number(d.value) || 4321 })}
+              onBlur={() => save(settings)}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card className={shared.card}>
         <div className={styles.row} style={{ justifyContent: 'space-between' }}>
           <Title3>Tenants &amp; Environments</Title3>
           <Button icon={<Add24Regular />} onClick={() => {

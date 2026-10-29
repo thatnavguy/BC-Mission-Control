@@ -1,12 +1,14 @@
 {
   "name": "bc-mission-control",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "setup": "npm --prefix server install && npm --prefix web install",
     "dev:server": "npm --prefix server run dev",
     "dev:web": "npm --prefix web run dev",
     "build": "npm --prefix web run build && npm --prefix server run build",
+    "build:exe": "npm --prefix web run build && npm --prefix server run build:exe",
+    "version:bump": "node scripts/version-bump.js",
     "start": "npm --prefix web run build && npm --prefix server run build && node server/dist/index.js"
   }
 }
