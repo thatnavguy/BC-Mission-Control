@@ -594,6 +594,68 @@ export async function getDeploymentStatus(
   return resp.value ?? [];
 }
 
+// ── Feature management (Automation API) ──────────────────────────────────────
+
+export interface FeatureInfo {
+  id: string;
+  /** 'Enabled for' value: 'None' or 'All Users' (not a boolean). */
+  enabled: string;
+  description: string;
+  descriptionInEnglish?: string;
+  learnMoreLink?: string;
+  /** 'Automatically enabled from' wave text, e.g. '2026 Wave 2 (from October 2026 to March 2027)' — not an ISO date. */
+  mandatoryBy?: string;
+  mandatoryByVersion?: string;
+  canTry?: boolean;
+  isOneWay?: boolean;
+  dataUpdateRequired?: boolean;
+}
+
+export async function getFeatures(
+  token: string,
+  tenantId: string,
+  environment: string,
+  companyId: string
+): Promise<FeatureInfo[]> {
+  const resp = await request(`${automationUrl(tenantId, environment)}/companies(${companyId})/features`, token);
+  return (resp.value ?? []).map((f: any) => ({
+    id: f.id,
+    enabled: String(f.enabled ?? ''),
+    description: f.description ?? f.id,
+    descriptionInEnglish: f.descriptionInEnglish,
+    learnMoreLink: f.learnMoreLink,
+    mandatoryBy: f.mandatoryBy,
+    mandatoryByVersion: f.mandatoryByVersion,
+    canTry: f.canTry,
+    isOneWay: f.isOneWay,
+    dataUpdateRequired: f.dataUpdateRequired
+  }));
+}
+
+/** Activate or deactivate a feature. Activation runs any data update as a background task. */
+export async function invokeFeatureAction(
+  token: string,
+  tenantId: string,
+  environment: string,
+  companyId: string,
+  featureId: string,
+  action: 'activate' | 'deactivate'
+): Promise<void> {
+  const key = featureId.replace(/'/g, "''");
+  await request(
+    `${automationUrl(tenantId, environment)}/companies(${companyId})/features('${key}')/Microsoft.NAV.${action}`,
+    token,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(action === 'activate'
+        ? { updateInBackground: true, startDateTime: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') }
+        : {})
+    },
+    true
+  );
+}
+
 /**
  * Immediate PTE publish: extensionUpload PATCH + content PUT + NAV.upload,
  * then poll extensionDeploymentStatus until a terminal state.

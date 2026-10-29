@@ -134,7 +134,15 @@ export default function ComparePage() {
     }
   }, []);
 
-  const rows = result?.rows.filter(r => !driftOnly || r.drift === true) ?? [];
+  // Live client-side filtering over loaded results; Compare re-fetches with the
+  // same filters server-side (case-insensitive contains, as in compare.ts).
+  const nameLc = appName.toLowerCase();
+  const pubLc = publisher.toLowerCase();
+  const rows = result?.rows.filter(r =>
+    (!driftOnly || r.drift === true) &&
+    (!nameLc || r.name.toLowerCase().includes(nameLc)) &&
+    (!pubLc || r.publisher.toLowerCase().includes(pubLc))
+  ) ?? [];
 
   const downloadCsv = () => {
     if (!result) return;
@@ -146,7 +154,7 @@ export default function ComparePage() {
         const environment = `${c.tenantName} / ${c.environment}`;
         return [`${environment} Version`, `${environment} Scope`, ...(c.error ? [`${environment} Error`] : [])];
       }),
-      'Drift'
+      'Difference'
     ];
     const records = rows.map(row => [
       row.appId,
@@ -184,7 +192,7 @@ export default function ComparePage() {
     <div className={styles.stack}>
       <Title2>Compare App Versions</Title2>
       <Text size={300} className={shared.pageDesc}>
-        Installed versions side by side across environments, with drift flagged.
+        Installed versions side by side across environments, with differences flagged.
       </Text>
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
 
@@ -249,7 +257,7 @@ export default function ComparePage() {
             onChange={(_e, d) => setPublisher(d.value)}
           />
           <Checkbox
-            label="Show drift only"
+            label="Show differences only"
             checked={driftOnly}
             onChange={(_e, d) => setDriftOnly(d.checked === true)}
           />
@@ -302,7 +310,7 @@ export default function ComparePage() {
                     <Text block size={100}>{c.environment}</Text>
                   </TableHeaderCell>
                 ))}
-                <TableHeaderCell>Drift</TableHeaderCell>
+                <TableHeaderCell>Difference</TableHeaderCell>
               </TableRow>
             </TableHeader>
             <TableBody>

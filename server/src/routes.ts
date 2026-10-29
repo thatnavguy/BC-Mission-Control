@@ -7,7 +7,7 @@ import {
   cancelDeviceFlow, effectiveClientId, getAccessToken, getAuthStatus, getDeviceFlowStatus,
   signOut, startDeviceFlow
 } from './auth';
-import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
+import { getCompanies, getDeploymentStatus, getExtensions, getAvailableAppUpdates, getAvailableCountries, getActiveSessions, getEnvironmentOperations, getEnvironmentUpdates, getFeatures, getInstalledApps, getStorageQuotas, getTimezones, getUpdateWindow, getUsedStorage, invokeExtensionAction, invokeFeatureAction, killSession, listEnvironments, selectTargetVersion, setUpdateWindow } from './bcClient';
 import { buildCompareMatrix } from './compare';
 import { listRuns, getRun, onRunUpdate, startDeployRun, cancelRun, DeployRequest } from './deploy';
 import { loadCallHistory, recordCall, clearCallHistory } from './callHistory';
@@ -177,6 +177,34 @@ router.post('/extensions/:action(install|unpublish)', asyncWrap(async (req, res)
   const companies = await getCompanies(token, String(tenantId), String(environment));
   if (companies.length === 0) { res.status(404).json({ error: 'No companies in environment' }); return; }
   await invokeExtensionAction(token, String(tenantId), String(environment), companies[0].id, String(packageId), req.params.action as 'install' | 'unpublish');
+  res.json({ ok: true });
+}));
+
+// ── Feature management ───────────────────────────────────────────────────
+
+router.get('/features', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const tenantId = String(req.query.tenantId || '');
+  const environment = String(req.query.environment || '');
+  if (!tenantId || !environment) { res.status(400).json({ error: 'tenantId and environment are required' }); return; }
+  const token = await getAccessToken(effectiveClientId(s.clientId), tenantId);
+  const companies = await getCompanies(token, tenantId, environment);
+  if (companies.length === 0) { res.status(404).json({ error: 'No companies in environment' }); return; }
+  const features = await getFeatures(token, tenantId, environment, companies[0].id);
+  res.json({ company: companies[0], features });
+}));
+
+router.post('/features/:action(activate|deactivate)', asyncWrap(async (req, res) => {
+  const s = loadSettings();
+  const { tenantId, environment, featureId } = req.body ?? {};
+  if (!tenantId || !environment || !featureId) {
+    res.status(400).json({ error: 'tenantId, environment and featureId are required' });
+    return;
+  }
+  const token = await getAccessToken(effectiveClientId(s.clientId), String(tenantId));
+  const companies = await getCompanies(token, String(tenantId), String(environment));
+  if (companies.length === 0) { res.status(404).json({ error: 'No companies in environment' }); return; }
+  await invokeFeatureAction(token, String(tenantId), String(environment), companies[0].id, String(featureId), req.params.action as 'activate' | 'deactivate');
   res.json({ ok: true });
 }));
 

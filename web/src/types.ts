@@ -199,6 +199,21 @@ export interface SessionInfo {
   currentOperationDuration?: number;
 }
 
+export interface FeatureInfo {
+  id: string;
+  /** 'Enabled for' value: 'None' or 'All Users' (not a boolean). */
+  enabled: string;
+  description: string;
+  descriptionInEnglish?: string;
+  learnMoreLink?: string;
+  /** 'Automatically enabled from' wave text, e.g. '2026 Wave 2 (from October 2026 to March 2027)' — not an ISO date. */
+  mandatoryBy?: string;
+  mandatoryByVersion?: string;
+  canTry?: boolean;
+  isOneWay?: boolean;
+  dataUpdateRequired?: boolean;
+}
+
 export interface AuthStatus {
   signedIn: boolean;
   savedAt?: string;
