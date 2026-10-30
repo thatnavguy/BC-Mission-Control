@@ -23,6 +23,7 @@ const useStyles = makeStyles({
   },
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   nowrap: { whiteSpace: 'nowrap' },
+  version: { display: 'flex', flexDirection: 'column' },
   truncateApp: {
     display: 'block',
     overflow: 'hidden',
@@ -176,11 +177,10 @@ export default function OperationsPage() {
     return appNames.get(appId.toLowerCase()) ?? `${appId.slice(0, 8)}…`;
   };
 
-  const versionLabel = (op: EnvironmentOperation): string => {
+  const versionLabel = (op: EnvironmentOperation): { source: string; target: string } => {
     const target = param(op, 'targetAppVersion', 'targetVersion');
     const source = param(op, 'sourceAppVersion', 'sourceVersion');
-    if (source && target) return `${source} → ${target}`;
-    return target || '—';
+    return { source, target };
   };
 
   return (
@@ -300,7 +300,20 @@ export default function OperationsPage() {
                     <TableCell><span className={styles.nowrap}>{fmtTime(op.startedOn ?? op.createdOn)}</span></TableCell>
                     <TableCell><span className={styles.nowrap}>{friendlyType(op.type)}</span></TableCell>
                     <TableCell><span className={styles.truncateApp} title={appLabel(op)}>{appLabel(op)}</span></TableCell>
-                    <TableCell><span className={styles.nowrap}>{versionLabel(op)}</span></TableCell>
+                    <TableCell>
+                      {(() => {
+                        const v = versionLabel(op);
+                        if (v.source && v.target) {
+                          return (
+                            <span className={styles.version} title={`${v.source} → ${v.target}`}>
+                              <span className={styles.nowrap}>{v.source}</span>
+                              <span className={styles.nowrap}>→ {v.target}</span>
+                            </span>
+                          );
+                        }
+                        return <span className={styles.nowrap}>{v.target || '—'}</span>;
+                      })()}
+                    </TableCell>
                     <TableCell>{statusBadge(op.status)}</TableCell>
                     <TableCell><span className={styles.truncateBy} title={op.createdBy || ''}>{op.createdBy || '—'}</span></TableCell>
                     <TableCell>
