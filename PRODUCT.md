@@ -38,7 +38,7 @@ deploy); this product is both, in one local app.
 
 - Runs locally on the consultant's Windows machine; launched by
   double-clicking `Start-MissionControl.bat` (or an optional desktop
-  shortcut), served at http://127.0.0.1:4321.
+  shortcut), served at http://127.0.0.1:7654.
 - OAuth2 device code flow; one refresh token shared across tenants.
 - Cloud actions call BC APIs directly; container actions spawn `pwsh` with
   BcContainerHelper (requires Docker Desktop, PowerShell 7,

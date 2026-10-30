@@ -29,10 +29,10 @@ if not exist "server\dist\index.js" (
 )
 
 echo.
-echo Starting at http://127.0.0.1:4321
+echo Starting at http://127.0.0.1:7654
 echo (Keep this window open while using the app. Close it to stop.)
 echo.
-start "" "http://127.0.0.1:4321"
+start "" "http://127.0.0.1:7654"
 node server\dist\index.js
 goto :eof
 

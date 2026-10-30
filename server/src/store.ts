@@ -15,7 +15,7 @@ for (const dir of [DATA_DIR, UPLOADS_DIR]) {
 const DEFAULT_SETTINGS: Settings = {
   clientId: '',
   tokenValidityDays: 80,
-  port: 4321,
+  port: 7654,
   tenants: [],
   containers: [],
   containerDefaults: { licenseFile: '', dns: '', country: 'nz', memoryLimit: '8G' }
@@ -53,7 +53,7 @@ export function loadSettings(): Settings {
   return {
     clientId: typeof parsed.clientId === 'string' ? parsed.clientId : '',
     tokenValidityDays: Number.isFinite(parsed.tokenValidityDays) ? parsed.tokenValidityDays : 80,
-    port: Number.isInteger(parsed.port) && parsed.port >= 1 && parsed.port <= 65535 ? parsed.port : 4321,
+    port: Number.isInteger(parsed.port) && parsed.port >= 1 && parsed.port <= 65535 ? parsed.port : 7654,
     tenants: Array.isArray(parsed.tenants) ? parsed.tenants : [],
     containers: Array.isArray(parsed.containers) ? parsed.containers : [],
     containerDefaults: {

@@ -8,7 +8,7 @@ import { isSea } from './runtime';
 import { cleanupStaleRunFiles, loadSettings } from './store';
 
 // PORT env var wins as a one-off override; otherwise the saved setting.
-const PORT = Number(process.env.PORT) || loadSettings().port || 4321;
+const PORT = Number(process.env.PORT) || loadSettings().port || 7654;
 
 const app = express();
 

@@ -33,7 +33,7 @@ APIs directly, using your own sign-in.
 
 1. Double-click **`Start-MissionControl.bat`** in the app folder.
 2. Wait for the console window to finish installing and building (first run only).
-3. Your browser opens at `http://127.0.0.1:4321`.
+3. Your browser opens at `http://127.0.0.1:7654`.
 
 Keep the console window open while you use the app. Close it to stop the app.
 

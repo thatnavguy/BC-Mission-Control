@@ -5,6 +5,24 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-30
+
+### Changed
+
+- The default port is now 7654 instead of 4321, avoiding clashes with other
+  local dev tools. Existing installs keep their saved port; change it any
+  time on the Setup page.
+
+### Fixed
+
+- App Operations: long version transitions (`source → target`) no longer
+  overflow under the Status badge. The two versions now stack on two lines.
+
+### Documentation
+
+- User guide screenshots retaken against the current UI, with tenant,
+  identity, and third-party app names sanitized.
+
 ## [1.1.0] - 2026-10-30
 
 ### Added

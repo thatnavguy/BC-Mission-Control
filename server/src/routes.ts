@@ -56,7 +56,7 @@ router.put('/settings', (req, res) => {
   saveSettings({
     clientId: body.clientId.trim(),
     tokenValidityDays: Number(body.tokenValidityDays) || 80,
-    port: Number.isInteger(port) && port >= 1 && port <= 65535 ? port : 4321,
+    port: Number.isInteger(port) && port >= 1 && port <= 65535 ? port : 7654,
     tenants,
     containers: containers.map(c => ({ name: c.name, containerName: c.containerName, enabled: c.enabled !== false })),
     containerDefaults: {

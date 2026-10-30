@@ -79,7 +79,7 @@ Product and design context live in `PRODUCT.md` (what the product is and who
 it serves) and `DESIGN.md` (the visual system: tokens, surfaces, rules).
 
 ```
-server/   Express + TypeScript backend (port 4321)
+server/   Express + TypeScript backend (port 7654)
           - OAuth2 device code flow against login.microsoftonline.com
           - Admin Center API  v2.29  (environments, app updates, platform
                                      updates, sessions, storage, PTE install,
@@ -99,7 +99,7 @@ Data (settings, token, uploaded apps) lives in `server/data/` — keep it privat
 2. Double-click it. Windows SmartScreen may warn because the exe is not
    code-signed — click **More info → Run anyway** (this is expected; see the
    release notes).
-3. Your browser opens http://127.0.0.1:4321. Keep the console window open
+3. Your browser opens http://127.0.0.1:7654. Keep the console window open
    while using the app. Settings, sign-in token, and uploaded apps are stored
    per-user in `%APPDATA%\BCMissionControl`. Prefer portable mode instead?
    Create an empty `data` folder next to the exe before first run and it will
@@ -130,7 +130,7 @@ either way.
    Or use **Code → Download ZIP** on GitHub and extract it.
 
 2. **Double-click `Start-MissionControl.bat`** — it installs dependencies and builds
-   on first run, starts the server, and opens http://127.0.0.1:4321 in your browser.
+   on first run, starts the server, and opens http://127.0.0.1:7654 in your browser.
    Keep the console window open while using the app.
 
 3. In the app, open **Setup** and click **Sign in with device code**
@@ -148,14 +148,14 @@ Prefer the terminal? Use these instead of `Start-MissionControl.bat`:
 
 ```powershell
 npm run setup     # first time: install dependencies
-npm start         # build web + server, serve everything at http://127.0.0.1:4321
+npm start         # build web + server, serve everything at http://127.0.0.1:7654
 ```
 
 Development mode (hot reload):
 
 ```powershell
-npm run dev:server   # terminal 1 — API on 4321
-npm run dev:web      # terminal 2 — UI on 5173 (proxies /api to 4321)
+npm run dev:server   # terminal 1 — API on 7654
+npm run dev:web      # terminal 2 — UI on 5173 (proxies /api to 7654)
 ```
 
 ## Building the exe yourself

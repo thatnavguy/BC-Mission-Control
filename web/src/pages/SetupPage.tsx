@@ -250,7 +250,7 @@ export default function SetupPage() {
               type="number"
               style={{ width: '110px' }}
               value={String(settings.port)}
-              onChange={(_e, d) => setSettings({ ...settings, port: Number(d.value) || 4321 })}
+              onChange={(_e, d) => setSettings({ ...settings, port: Number(d.value) || 7654 })}
               onBlur={() => save(settings)}
             />
           </Field>

@@ -7,9 +7,9 @@ containers. TypeScript monorepo with two packages: `server/` (Express API) and
 ## Build and run
 
 - `npm run setup` — install dependencies for both packages (first time)
-- `npm start` — build both, serve everything at http://127.0.0.1:4321
+- `npm start` — build both, serve everything at http://127.0.0.1:7654
 - `Start-MissionControl.bat` — double-click launcher used by end users (install/build if missing, then start)
-- Dev mode: `npm run dev:server` (tsx watch, port 4321) + `npm run dev:web` (Vite, port 5173, proxies `/api` → 4321)
+- Dev mode: `npm run dev:server` (tsx watch, port 7654) + `npm run dev:web` (Vite, port 5173, proxies `/api` → 7654)
 - Typecheck/build server only: `npm --prefix server run build`
 - Build web only: `npm --prefix web run build` (runs `tsc -b` then `vite build`)
 
