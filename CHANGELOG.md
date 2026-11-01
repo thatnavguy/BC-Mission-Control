@@ -5,6 +5,19 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-02
+
+### Changed
+
+- BC Updates now lets you change the schedule for an already-selected version.
+  The existing schedule date and update-window preference are shown when you
+  open the schedule editor.
+
+### Fixed
+
+- BC Updates date columns no longer run together on narrower screens; the
+  schedule dates wrap onto multiple lines when needed.
+
 ## [1.2.0] - 2026-10-30
 
 ### Changed

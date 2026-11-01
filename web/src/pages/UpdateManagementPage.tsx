@@ -27,8 +27,7 @@ const useStyles = makeStyles({
   row: { display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' },
   form: { display: 'flex', flexDirection: 'column', gap: '12px' },
   windowSummary: { display: 'flex', gap: '32px', alignItems: 'center', flexWrap: 'wrap', marginTop: '8px' },
-  big: { fontSize: '20px', fontWeight: 700 },
-  nowrap: { whiteSpace: 'nowrap' }
+  big: { fontSize: '20px', fontWeight: 700 }
 });
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -150,21 +149,36 @@ export default function UpdateManagementPage() {
     setError('');
     setSaving(true);
     try {
+      const currentSchedule = scheduleTarget.scheduleDetails?.selectedDateTime;
+      const selectedDateTime = scheduleDate
+        ? currentSchedule?.startsWith(`${scheduleDate}T`) ? currentSchedule : scheduleDate
+        : undefined;
       await api.post('/api/updates/select', {
         tenantId,
         environment,
         targetVersion: scheduleTarget.targetVersion,
-        ...(scheduleDate ? { selectedDateTime: scheduleDate } : {}),
+        ...(selectedDateTime ? { selectedDateTime } : {}),
         ignoreUpdateWindow: ignoreWindow
       });
+      const wasSelected = scheduleTarget.selected;
       setScheduleTarget(null);
-      setNotice(`Update to ${scheduleTarget.targetVersion} selected.`);
+      setNotice(wasSelected
+        ? `Schedule for ${scheduleTarget.targetVersion} updated.`
+        : `Update to ${scheduleTarget.targetVersion} selected.`);
       await refresh();
     } catch (e: any) {
       setError(e.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const openScheduleDialog = (update: EnvironmentUpdateInfo) => {
+    setScheduleTarget(update);
+    setScheduleDate(update.selected
+      ? update.scheduleDetails?.selectedDateTime?.slice(0, 10) ?? ''
+      : '');
+    setIgnoreWindow(update.scheduleDetails?.ignoreUpdateWindow ?? false);
   };
 
   const w = data?.window;
@@ -301,16 +315,16 @@ export default function UpdateManagementPage() {
                             ? <Text>Expected {MONTHS[(u.expectedAvailability.month ?? 1) - 1]} {u.expectedAvailability.year}</Text>
                             : <Text style={{ color: tokens.colorNeutralForeground4 }}>Not yet released</Text>}
                       </TableCell>
-                      <TableCell><span className={styles.nowrap}>{fmtDateTime(u.scheduleDetails?.selectedDateTime)}</span></TableCell>
-                      <TableCell><span className={styles.nowrap}>{fmtDateTime(u.scheduleDetails?.latestSelectableDateTime)}</span></TableCell>
+                      <TableCell>{fmtDateTime(u.scheduleDetails?.selectedDateTime)}</TableCell>
+                      <TableCell>{fmtDateTime(u.scheduleDetails?.latestSelectableDateTime)}</TableCell>
                       <TableCell>{rolloutBadge(u.scheduleDetails?.rolloutStatus)}</TableCell>
                       <TableCell>
-                        {u.available && !u.selected && (
+                        {u.available && (
                           <Button
                             size="small"
-                            onClick={() => { setScheduleTarget(u); setScheduleDate(''); setIgnoreWindow(false); }}
+                            onClick={() => openScheduleDialog(u)}
                           >
-                            Select
+                            {u.selected ? 'Change schedule' : 'Select'}
                           </Button>
                         )}
                       </TableCell>
@@ -368,10 +382,12 @@ export default function UpdateManagementPage() {
       <Dialog open={!!scheduleTarget} onOpenChange={(_e, d) => { if (!d.open) setScheduleTarget(null); }}>
         <DialogSurface>
           <DialogBody>
-            <DialogTitle>Schedule update to {scheduleTarget?.targetVersion}</DialogTitle>
+            <DialogTitle>
+              {scheduleTarget?.selected ? 'Change schedule for' : 'Schedule update to'} {scheduleTarget?.targetVersion}
+            </DialogTitle>
             <DialogContent>
               <div className={styles.form}>
-                <Field label="Date (optional)" hint="If the time falls outside the update window, the update runs in the next window instead.">
+                <Field label="Schedule date (optional)" hint="This selects when the version update is scheduled. If it falls outside the maintenance window, the update runs in the next window instead.">
                   <Input type="date" value={scheduleDate} onChange={(_e, d) => setScheduleDate(d.value)} />
                 </Field>
                 <Checkbox
@@ -389,7 +405,7 @@ export default function UpdateManagementPage() {
             <DialogActions>
               <Button appearance="secondary" onClick={() => setScheduleTarget(null)}>Cancel</Button>
               <Button appearance="primary" disabled={saving} onClick={saveSchedule}>
-                {saving ? 'Selecting...' : 'Select this version'}
+                {saving ? 'Saving...' : scheduleTarget?.selected ? 'Save schedule' : 'Select this version'}
               </Button>
             </DialogActions>
           </DialogBody>
