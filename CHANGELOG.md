@@ -5,6 +5,11 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- The Windows executable and desktop shortcut now use the Mission Control
+  mascot as their icon.
+
 ## [1.2.1] - 2026-11-02
 
 ### Changed

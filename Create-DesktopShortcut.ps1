@@ -12,7 +12,7 @@ $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath       = $target
 $shortcut.WorkingDirectory = $repoRoot
 $shortcut.Description      = 'Start BC Mission Control'
-$shortcut.IconLocation     = "$env:SystemRoot\System32\imageres.dll,68"  # globe icon
+$shortcut.IconLocation     = Join-Path $repoRoot 'web\public\mascot.ico'
 $shortcut.Save()
 
 Write-Host "Shortcut created: $shortcutPath" -ForegroundColor Green
