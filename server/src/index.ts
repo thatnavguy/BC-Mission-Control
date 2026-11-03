@@ -6,6 +6,13 @@ import { router } from './routes';
 import { getEmbeddedAsset } from './webAssets';
 import { isSea } from './runtime';
 import { cleanupStaleRunFiles, loadSettings } from './store';
+import { AppInfo } from './types';
+
+// esbuild embeds this package metadata in the EXE; source runs read the server package.
+const { version } = require('../package.json') as { version: string };
+const appInfo: AppInfo = {
+  version
+};
 
 // PORT env var wins as a one-off override; otherwise the saved setting.
 const PORT = Number(process.env.PORT) || loadSettings().port || 7654;
@@ -40,6 +47,10 @@ app.use('/api', (req, res, next) => {
 });
 
 app.use(express.json({ limit: '2mb' }));
+
+app.get('/api/about', (_req, res) => {
+  res.set('Cache-Control', 'no-store').json(appInfo);
+});
 
 app.use('/api', router);
 

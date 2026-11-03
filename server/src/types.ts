@@ -115,3 +115,6 @@ export interface EnvironmentInfo {
   status?: string;
   version?: string;
 }
+export interface AppInfo {
+  version: string;
+}

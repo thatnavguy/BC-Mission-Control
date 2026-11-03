@@ -5,6 +5,11 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- An About page shows your installed app version. It also
+  links to the user guide, GitHub repository, latest release, and GitHub issues.
+
 ## [1.2.2] - 2026-11-04
 
 ### Added

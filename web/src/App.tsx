@@ -7,7 +7,7 @@ import {
   AppsList24Regular, Grid24Regular, PlugConnected24Regular, Pulse24Regular,
   Cube24Regular, Rocket24Regular, Globe24Regular, ArrowClockwise24Regular,
   Database24Regular, DocumentBulletList24Regular, CalendarSync24Regular,
-  PersonDesktopRegular, ToggleLeft24Regular, MailAlert24Regular
+  PersonDesktopRegular, ToggleLeft24Regular, MailAlert24Regular, Info24Regular
 } from '@fluentui/react-icons';
 import { fox } from './theme';
 const DeployPage = lazy(() => import('./pages/DeployPage'));
@@ -27,6 +27,7 @@ const UpdateManagementPage = lazy(() => import('./pages/UpdateManagementPage'));
 const SessionsPage = lazy(() => import('./pages/SessionsPage'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
 
 const useStyles = makeStyles({
   shell: { display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: '#ffffff' },
@@ -87,7 +88,7 @@ const useStyles = makeStyles({
   }
 });
 
-const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'bcupdates', 'features', 'sessions', 'notifications', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup'] as const;
+const PAGE_KEYS = ['environments', 'deploy', 'apps', 'updates', 'bcupdates', 'features', 'sessions', 'notifications', 'compare', 'status', 'operations', 'storage', 'api', 'cdeploy', 'containers', 'history', 'setup', 'about'] as const;
 
 type PageKey = (typeof PAGE_KEYS)[number];
 
@@ -150,6 +151,7 @@ export default function App() {
           <div className={styles.section}>General</div>
           <Tab value="history" icon={<History24Regular />} aria-label="General: History" title="General: History">History</Tab>
           <Tab value="setup" icon={<Settings24Regular />} aria-label="General: Setup" title="General: Setup">Setup</Tab>
+          <Tab value="about" icon={<Info24Regular />} aria-label="General: About" title="General: About">About</Tab>
         </TabList>
       </nav>
       <main className={styles.content} key={page}>
@@ -172,6 +174,7 @@ export default function App() {
             {page === 'containers' && <ContainersPage />}
             {page === 'history' && <HistoryPage />}
             {page === 'setup' && <SetupPage />}
+            {page === 'about' && <AboutPage />}
           </div>
         </Suspense>
       </main>

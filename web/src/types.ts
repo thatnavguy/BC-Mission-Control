@@ -253,3 +253,6 @@ export interface ContainersResponse {
   running: DockerContainer[];
   capabilities: ContainerCapabilities;
 }
+export interface AppInfo {
+  version: string;
+}

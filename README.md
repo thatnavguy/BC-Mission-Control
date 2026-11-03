@@ -173,3 +173,5 @@ builds the exe on GitHub Actions and attaches it to the release.
 ## License
 
 [MIT](LICENSE) — © 2026 [Teddy Herryanto](https://thatnavguy.com).
+- **About** — see your installed app version, and open
+  the user guide, GitHub repository, latest release, or GitHub issues.
