@@ -5,6 +5,8 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-04
+
 ### Added
 
 - The Windows executable and desktop shortcut now use the Mission Control
