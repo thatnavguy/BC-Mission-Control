@@ -31,14 +31,50 @@ APIs directly, using your own sign-in.
 
 ## Start the app
 
-1. Double-click **`Start-MissionControl.bat`** in the app folder.
-2. Wait for the console window to finish installing and building (first run only).
-3. Your browser opens at `http://127.0.0.1:7654`.
+### Download and run the EXE (recommended)
+
+You do not need to install Node.js or download the source code.
+
+1. Download **`BCMissionControl.exe`** from the
+   [latest release](https://github.com/thatnavguy/BC-Mission-Control/releases/latest).
+2. Save it in a folder where you want to keep the app.
+3. Double-click **`BCMissionControl.exe`**.
+
+Your browser opens at `http://127.0.0.1:7654`, unless you have saved a different
+port in Setup.
 
 Keep the console window open while you use the app. Close it to stop the app.
 
-> **Tip:** Run `Create-DesktopShortcut.ps1` once (right-click → Run with
-> PowerShell) to get a desktop shortcut.
+Windows SmartScreen may show a warning because the EXE is not code-signed.
+Only proceed if you downloaded it from this project's GitHub release page
+and trust the file. Select **More info**, then **Run anyway**, if Windows offers it.
+
+For a desktop shortcut, right-click the EXE and select **Send to → Desktop
+(create shortcut)**. On Windows 11, select **Show more options** first if needed.
+
+Docker Desktop, PowerShell 7, and BcContainerHelper are still required for
+container work. You do not need them for cloud-only use.
+
+### Update the EXE
+
+1. Close the app's console window.
+2. Download **`BCMissionControl.exe`** from the latest release.
+3. Replace your old EXE with the downloaded file.
+4. Double-click the new EXE.
+
+Your saved settings and sign-in are kept. Open **General → About** to check
+your installed version.
+
+### Run from source code (alternative)
+
+Use this option if you want to work with the source code. Follow the
+[source setup instructions](../README.md#option-2--run-from-source) in the README.
+
+1. Double-click **`Start-MissionControl.bat`** in the source folder.
+2. Wait for it to install dependencies and build the app on the first run.
+3. Keep the console window open while you use the app.
+
+For this option, run `Create-DesktopShortcut.ps1` once to create a desktop shortcut.
 
 ---
 
@@ -387,8 +423,8 @@ through console windows.
 
 | Problem | What to do |
 |---|---|
-| `npm` or `node` is “not recognized” | Download and install [Node.js](https://nodejs.org/en/download) (18 or later). Choose the **LTS (Long Term Support)** version; the installer includes npm. Then close and reopen the console window and run `Start-MissionControl.bat` again. |
-| The browser shows "can't reach this page" | Start the app again with `Start-MissionControl.bat` and keep the console window open. |
+| `npm` or `node` is “not recognized” when running from source | Install the **LTS (Long Term Support)** version of [Node.js](https://nodejs.org/en/download). Then reopen the console and run `Start-MissionControl.bat` again. The EXE does not need Node.js. |
+| The browser shows "can't reach this page" | Double-click `BCMissionControl.exe` again and keep its console window open. If you run from source, use `Start-MissionControl.bat` instead. Use the address shown in the console. |
 | A page asks you to sign in again | Your token expired. Go to **Setup** → **Re-authenticate**. |
 | "Load environments" fails | Check the Tenant ID is a valid GUID and your account has access to that tenant's Admin Center. |
 | Container pages show errors | Make sure Docker Desktop is running, `pwsh` is on your PATH, and BcContainerHelper is installed (`Install-Module BcContainerHelper`). |
@@ -399,6 +435,16 @@ through console windows.
 
 ## Where your data lives
 
-All settings, your sign-in token, and uploaded `.app` files are stored in the
-`server/data/` folder on your computer. Nothing is uploaded anywhere else.
-Keep this folder private and do not commit it to source control.
+Settings, your sign-in token, and staged `.app` files are stored on your computer:
+
+- **EXE:** `%APPDATA%\BCMissionControl`. Paste this path into File Explorer
+  to open the folder.
+- **Portable EXE:** if a `data` folder exists beside the EXE, the app uses
+  that folder instead. Create it before your first run if you want this option.
+- **Source code:** `server/data/` inside the source folder.
+
+Keep this folder private and do not commit it to source control. When updating
+a portable EXE, keep its `data` folder beside the replacement EXE.
+
+Settings and sign-in data stay local. When you deploy an app, its `.app` file
+is sent to the Business Central environment or container you selected.

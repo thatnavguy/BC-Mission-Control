@@ -5,6 +5,12 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Documentation
+
+- The user guide now recommends downloading and double-clicking the EXE.
+  Source-code startup is an alternative, with updated shortcut, update,
+  troubleshooting, and data-folder instructions.
+
 ## [1.3.0] - 2026-11-04
 
 ### Added
