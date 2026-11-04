@@ -10,6 +10,9 @@ Central Admin Center and Automation APIs directly; no scripts to run by hand.
 
 Built by [Teddy Herryanto](https://thatnavguy.com).
 
+If BC Mission Control is useful to you, consider giving the
+[GitHub repository](https://github.com/thatnavguy/BC-Mission-Control) a star to help others discover it.
+
 ![BC Mission Control — Environments page](docs/screenshots/environments.png)
 
 **New here? Read the [User Guide](docs/UserGuide.md)** — step-by-step
