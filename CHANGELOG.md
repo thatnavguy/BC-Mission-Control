@@ -5,6 +5,11 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Compare App Versions now starts with all tenants and environments unchecked.
+  Returning to a cached comparison still restores its previous selection.
+
 ### Documentation
 
 - The user guide now recommends downloading and double-clicking the EXE.

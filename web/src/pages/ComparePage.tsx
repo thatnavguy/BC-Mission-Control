@@ -100,14 +100,7 @@ export default function ComparePage() {
         setResult(hit.result);
         return;
       }
-      // Default: all enabled environments selected
-      const all = new Set<string>();
-      for (const t of s.tenants) {
-        for (const [env, enabled] of Object.entries(t.environments)) {
-          if (enabled) all.add(`${t.id}|${env}`);
-        }
-      }
-      setTargets(all);
+      setTargets(new Set());
     }).catch(e => setError(e.message));
   }, []);
 
