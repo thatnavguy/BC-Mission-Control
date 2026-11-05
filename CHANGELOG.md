@@ -5,6 +5,14 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Scheduling a BC update with a date no longer fails with "Selected date time
+  for update cannot be in the past". The picked date is now combined with the
+  environment's update window start time instead of midnight UTC, and dates
+  that have already passed are blocked with a clear message before the API
+  call.
+
 ## [1.5.0] - 2026-11-05
 
 ### Added

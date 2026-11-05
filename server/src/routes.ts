@@ -389,6 +389,10 @@ router.post('/updates/select', asyncWrap(async (req, res) => {
     res.status(400).json({ error: 'selectedDateTime is not a valid date/time' });
     return;
   }
+  if (selectedDateTime && selectedDateTime.getTime() <= Date.now()) {
+    res.status(400).json({ error: 'selectedDateTime is in the past; pick a future date/time' });
+    return;
+  }
   const token = await getAccessToken(effectiveClientId(s.clientId), String(tenantId));
   const result = await selectTargetVersion(token, String(environment), String(targetVersion), {
     selectedDateTime: selectedDateTime?.toISOString(),

@@ -150,9 +150,28 @@ export default function UpdateManagementPage() {
     setSaving(true);
     try {
       const currentSchedule = scheduleTarget.scheduleDetails?.selectedDateTime;
-      const selectedDateTime = scheduleDate
-        ? currentSchedule?.startsWith(`${scheduleDate}T`) ? currentSchedule : scheduleDate
-        : undefined;
+      let selectedDateTime: string | undefined;
+      if (scheduleDate) {
+        if (currentSchedule?.startsWith(`${scheduleDate}T`)) {
+          selectedDateTime = currentSchedule;
+        } else {
+          // Combine the picked date with the update window start (UTC). A bare
+          // date becomes midnight UTC, which is often already in the past and
+          // rejected by the Admin Center API.
+          const startUtc = data?.window?.preferredStartTimeUtc;
+          const startMs = startUtc ? new Date(startUtc).getTime() : NaN;
+          const timePart = !isNaN(startMs)
+            ? new Date(startMs).toISOString().slice(11, 19)
+            : '12:00:00';
+          const combined = new Date(`${scheduleDate}T${timePart}Z`);
+          if (combined.getTime() <= Date.now()) {
+            setSaving(false);
+            setError('The selected date has already passed for this environment\'s update window. Pick a later date.');
+            return;
+          }
+          selectedDateTime = combined.toISOString();
+        }
+      }
       await api.post('/api/updates/select', {
         tenantId,
         environment,
