@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
 title BC Mission Control
 cd /d "%~dp0"
 
@@ -18,14 +18,39 @@ if not exist "web\node_modules" (
   call npm --prefix web install --no-audit --no-fund || goto :error
 )
 
-REM Build if output is missing
-if not exist "web\dist\index.html" (
-  echo Building web UI...
-  call npm --prefix web run build || goto :error
+REM Rebuild when outputs are missing or the checked-out Git commit has changed
+set "BUILD_REQUIRED=0"
+if not exist "web\dist\index.html" set "BUILD_REQUIRED=1"
+if not exist "server\dist\index.js" set "BUILD_REQUIRED=1"
+set "CURRENT_COMMIT="
+set "CURRENT_VERSION="
+for /f "delims=" %%i in ('git rev-parse HEAD 2^>nul') do set "CURRENT_COMMIT=%%i"
+for /f "delims=" %%i in ('node -p "require('./package.json').version" 2^>nul') do set "CURRENT_VERSION=%%i"
+if not exist "server\dist\.build-info" set "BUILD_REQUIRED=1"
+if exist "server\dist\.build-info" (
+  set /p BUILT_COMMIT=<"server\dist\.build-info"
+  for /f "usebackq skip=1 delims=" %%i in ("server\dist\.build-info") do set "BUILT_VERSION=%%i"
+  if defined CURRENT_COMMIT (
+    if not "!CURRENT_COMMIT!"=="!BUILT_COMMIT!" set "BUILD_REQUIRED=1"
+  ) else (
+    if not "!CURRENT_VERSION!"=="!BUILT_VERSION!" set "BUILD_REQUIRED=1"
+  )
 )
-if not exist "server\dist\index.js" (
-  echo Building server...
-  call npm --prefix server run build || goto :error
+
+if "!BUILD_REQUIRED!"=="1" (
+  echo Building Mission Control...
+  call npm run build || goto :error
+  if defined CURRENT_COMMIT (
+    >"server\dist\.build-info" (
+      echo !CURRENT_COMMIT!
+      echo !CURRENT_VERSION!
+    )
+  ) else (
+    >"server\dist\.build-info" (
+      echo no-git
+      echo !CURRENT_VERSION!
+    )
+  )
 )
 
 echo.

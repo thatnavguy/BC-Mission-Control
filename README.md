@@ -132,8 +132,9 @@ either way.
 
    Or use **Code → Download ZIP** on GitHub and extract it.
 
-2. **Double-click `Start-MissionControl.bat`** — it installs dependencies and builds
-   on first run, starts the server, and opens http://127.0.0.1:7654 in your browser.
+2. **Double-click `Start-MissionControl.bat`** — it installs dependencies, builds
+   when needed (including after pulling a new Git commit), starts the server, and
+   opens http://127.0.0.1:7654 in your browser.
    Keep the console window open while using the app.
 
 3. In the app, open **Setup** and click **Sign in with device code**
