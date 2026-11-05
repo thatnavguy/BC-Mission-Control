@@ -506,7 +506,7 @@ router.post('/call', asyncWrap(async (req, res) => {
       method: m,
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
+        Accept: new URL(url).pathname.endsWith('/$metadata') ? 'application/xml' : 'application/json',
         ...(body !== undefined && body !== null && body !== '' ? { 'Content-Type': 'application/json' } : {})
       },
       body: m === 'GET' || m === 'DELETE' || body === undefined || body === null || body === ''

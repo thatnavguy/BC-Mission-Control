@@ -420,6 +420,43 @@ Leave this field blank if the path already specifies the company.
 
 Calls run as your signed-in user, so you only see data your account can see.
 
+#### Filter and sort results
+
+For Microsoft APIs and Custom **GET** requests, use **Refine results**:
+
+1. Click **Load fields** to read the API's field names and data types.
+   This reads metadata (the API's description), not business records.
+   If field discovery is unavailable, enter the field name and type manually.
+2. In **Filter builder**, click **Add condition**. Choose a field, condition, and value.
+   Loaded fields have readable labels, such as **Display name**, with the API
+   name (`displayName`) below each suggestion. Types are detected when you choose
+   a field. Manually entered fields also show a **Type** choice.
+   Text values do not need quotes. Dates use a date picker, and Yes / No fields
+   offer two choices. Date-and-time values must include a time zone.
+3. Add more conditions if needed. The builder matches **all** conditions.
+   For **OR** or grouped conditions, choose **Advanced filter**.
+   Enter only the expression, for example:
+   `status eq 'Open' and totalAmountExcludingTax gt 1000`.
+   Each filter mode keeps its own conditions. Only the active mode is applied.
+4. Open **Result options** to choose a sort field, direction, fields to return,
+   or record limit. Blank options keep the API defaults.
+   Selected fields appear as removable chips when fields are loaded.
+   A record limit is an upper bound; BC can still return a smaller page.
+5. Click **Send request**. To inspect the filter expression and generated URL
+   first, expand **View request details**.
+
+The app escapes quotes in guided text values and encodes query values for URLs.
+It does not replace query options already written in a Custom path or URL.
+If both specify the same option, clear one before sending.
+**Clear all options** removes the builder's options, not parameters in your path.
+Changing the endpoint, company, or target clears the builder's options.
+Non-GET methods do not apply the builder's options.
+
+Field discovery lists supported scalar fields, not related collections or complex
+values. An API may still reject a filter on a particular field or function.
+BC checks advanced expressions when you send the request and shows any error
+in the response. See [Microsoft's filtering guide](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-connect-apps-filtering).
+
 ---
 
 ## Container section

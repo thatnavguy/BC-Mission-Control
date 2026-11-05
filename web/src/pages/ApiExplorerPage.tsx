@@ -9,6 +9,8 @@ import { api } from '../api';
 import { useSharedStyles } from '../theme';
 import { ApiCallHistoryEntry, Settings } from '../types';
 import TargetPicker, { TargetSelection } from '../components/TargetPicker';
+import ApiQueryBuilder from '../components/ApiQueryBuilder';
+import { buildQuery, emptyQuery, QueryOptions } from '../components/apiQuery';
 
 const useStyles = makeStyles({
   stack: { display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1200px' },
@@ -128,6 +130,7 @@ export default function ApiExplorerPage() {
   const [error, setError] = useState('');
   const [history, setHistory] = useState<ApiCallHistoryEntry[]>([]);
   const [selected, setSelected] = useState<ApiCallHistoryEntry | null>(null);
+  const [query, setQuery] = useState<{ key: string; value: QueryOptions } | null>(null);
   const preset = apiType === 'microsoft' ? apiPresets.find(p => p.entity === presetId) : undefined;
   const isFullUrl = apiType === 'custom' && pathType === 'full';
   let urlTarget: { tenantId: string; environment: string } | null = null;
@@ -149,7 +152,11 @@ export default function ApiExplorerPage() {
     ? `api/v2.0/${preset.companyRequired ? `companies(${companyId || '{companyId}'})/` : ''}${preset.parent ? `${preset.parent.entity}(${parentId.trim() || '{journalId}'})/` : ''}${preset.entity}`
     : isFullUrl ? fullUrl : path;
   const selectedCompany = companies.find(c => c.id === companyId);
-  const canSend = (isFullUrl ? !!urlTarget : !!target?.environment && (!!preset || !/^https?:/i.test(path.trim()))) && !!requestPath.trim() &&
+  const queryKey = JSON.stringify([apiType, pathType, requestPath, isFullUrl ? '' : target, company]);
+  const queryOptions = query?.key === queryKey ? query.value : emptyQuery();
+  const isGet = !!preset || method === 'GET';
+  const prepared = isGet ? buildQuery(requestPath.trim(), queryOptions) : { path: requestPath.trim(), error: '' };
+  const canSend = !prepared.error && (isFullUrl ? !!urlTarget : !!target?.environment && (!!preset || !/^https?:/i.test(path.trim()))) && !!requestPath.trim() &&
     (!preset?.companyRequired || !!selectedCompany) &&
     (!preset?.parent || guidPattern.test(parentId.trim()));
   const visiblePresets = apiPresets.filter(p =>
@@ -242,7 +249,7 @@ export default function ApiExplorerPage() {
           tenantId: isFullUrl ? undefined : target?.tenantId,
           environment: isFullUrl ? undefined : target?.environment,
           method: preset ? 'GET' : method,
-          path: requestPath.trim(),
+          path: prepared.path,
           companyName: preset || isFullUrl ? undefined : company.trim() || undefined,
           body: preset ? undefined : body.trim() || undefined
         })
@@ -410,6 +417,31 @@ export default function ApiExplorerPage() {
         </Field>
         {isFullUrl && urlTarget && (
           <Text size={200}>Tenant: {urlTarget.tenantId} | Environment: {urlTarget.environment}</Text>
+        )}
+        {isGet && (
+          <>
+            <ApiQueryBuilder
+              key={queryKey}
+              path={requestPath}
+              value={queryOptions}
+              onChange={value => setQuery({ key: queryKey, value })}
+              canLoad={isFullUrl ? !!urlTarget : !!target?.environment && !!requestPath.trim()}
+              error={prepared.error}
+              requestPreview={prepared.path}
+              load={async metadataPath => {
+                try {
+                  const response = await api.post<CallResult>('/api/call', {
+                    tenantId: isFullUrl ? undefined : target?.tenantId,
+                    environment: isFullUrl ? undefined : target?.environment,
+                    method: 'GET', path: metadataPath
+                  });
+                  return response.body;
+                } finally {
+                  loadHistory();
+                }
+              }}
+            />
+          </>
         )}
         {apiType === 'custom' && !isFullUrl && (
           <details>

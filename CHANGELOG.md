@@ -5,6 +5,20 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-05
+
+### Added
+
+- API Explorer now offers guided filters for Microsoft and Custom GET requests.
+  Load field names and types from API metadata, add typed conditions, or enter
+  an advanced OData expression. Choose returned fields, sort order, and a record
+  limit, with a request preview and checks for conflicting URL parameters.
+  The filter builder uses readable field labels and automatic types. Advanced
+  filters, removable field selections, and collapsible request details keep
+  technical options available without crowding the form.
+  Result controls stay aligned with helper text, and Clear all options is a
+  visible reset button that remains disabled until options are set.
+
 ## [1.4.0] - 2026-11-05
 
 ### Added
