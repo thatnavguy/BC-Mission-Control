@@ -5,8 +5,24 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-05
+
+### Added
+
+- API Explorer now has Microsoft and Custom modes. Microsoft offers 31 GET
+  presets grouped by Company setup, Finance, Sales, Purchasing, Inventory,
+  Payment setup, and People. Search by label, endpoint name, or area and see
+  the generated request path. Journal Lines supports a journal ID. Load and
+  select a company for company-specific requests, or use Custom for other APIs.
+- Custom API requests now offer Relative path and Full URL options. Full URLs
+  supply the tenant and environment for authentication and history without selectors.
+  Company options are shown and applied only for relative paths; full URLs include
+  any company selection directly.
+
 ### Changed
 
+- API Explorer's Custom company field is now labelled "Company ID or name",
+  under collapsible Additional options, with short API path and company examples.
 - Compare App Versions now starts with all tenants and environments unchecked.
   Returning to a cached comparison still restores its previous selection.
 

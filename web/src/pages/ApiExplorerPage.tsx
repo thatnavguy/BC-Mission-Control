@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Badge, Button, Card, Dropdown, Field, Input, makeStyles, MessageBar,
-  MessageBarBody, Option, Spinner, Table, TableBody, TableCell, TableHeader,
+  Badge, Button, Card, Combobox, Dropdown, Field, Input, makeStyles, MessageBar,
+  MessageBarBody, Option, OptionGroup, Radio, RadioGroup, Spinner, Table, TableBody, TableCell, TableHeader,
   TableHeaderCell, TableRow, Textarea, Title2, Title3, tokens, Text
 } from '@fluentui/react-components';
 import { Delete24Regular, Play24Regular } from '@fluentui/react-icons';
@@ -29,6 +29,80 @@ interface CallResult {
   body: string;
 }
 
+interface ApiPreset {
+  entity: string;
+  label: string;
+  group: string;
+  companyRequired: boolean;
+  parent?: { entity: string; label: string };
+}
+
+const apiPresets: ApiPreset[] = [
+  { entity: 'companies', label: 'Companies', group: 'Company setup', companyRequired: false },
+  { entity: 'companyInformation', label: 'Company information', group: 'Company setup', companyRequired: true },
+  { entity: 'currencies', label: 'Currencies', group: 'Company setup', companyRequired: true },
+  { entity: 'countriesRegions', label: 'Countries/regions', group: 'Company setup', companyRequired: true },
+  { entity: 'accounts', label: 'Accounts', group: 'Finance', companyRequired: true },
+  { entity: 'generalLedgerEntries', label: 'General ledger entries', group: 'Finance', companyRequired: true },
+  { entity: 'journals', label: 'Journals', group: 'Finance', companyRequired: true },
+  { entity: 'journalLines', label: 'Journal lines', group: 'Finance', companyRequired: true, parent: { entity: 'journals', label: 'Journal' } },
+  { entity: 'dimensions', label: 'Dimensions', group: 'Finance', companyRequired: true },
+  { entity: 'dimensionValues', label: 'Dimension values', group: 'Finance', companyRequired: true },
+  { entity: 'customers', label: 'Customers', group: 'Sales', companyRequired: true },
+  { entity: 'salesInvoices', label: 'Sales invoices', group: 'Sales', companyRequired: true },
+  { entity: 'salesOrders', label: 'Sales orders', group: 'Sales', companyRequired: true },
+  { entity: 'salesQuotes', label: 'Sales quotes', group: 'Sales', companyRequired: true },
+  { entity: 'salesCreditMemos', label: 'Sales credit memos', group: 'Sales', companyRequired: true },
+  { entity: 'salesShipments', label: 'Sales shipments', group: 'Sales', companyRequired: true },
+  { entity: 'vendors', label: 'Vendors', group: 'Purchasing', companyRequired: true },
+  { entity: 'purchaseOrders', label: 'Purchase orders', group: 'Purchasing', companyRequired: true },
+  { entity: 'purchaseInvoices', label: 'Purchase invoices', group: 'Purchasing', companyRequired: true },
+  { entity: 'purchaseCreditMemos', label: 'Purchase credit memos', group: 'Purchasing', companyRequired: true },
+  { entity: 'purchaseReceipts', label: 'Purchase receipts', group: 'Purchasing', companyRequired: true },
+  { entity: 'items', label: 'Items', group: 'Inventory', companyRequired: true },
+  { entity: 'locations', label: 'Locations', group: 'Inventory', companyRequired: true },
+  { entity: 'itemCategories', label: 'Item categories', group: 'Inventory', companyRequired: true },
+  { entity: 'unitsOfMeasure', label: 'Units of measure', group: 'Inventory', companyRequired: true },
+  { entity: 'itemLedgerEntries', label: 'Item ledger entries', group: 'Inventory', companyRequired: true },
+  { entity: 'paymentTerms', label: 'Payment terms', group: 'Payment setup', companyRequired: true },
+  { entity: 'paymentMethods', label: 'Payment methods', group: 'Payment setup', companyRequired: true },
+  { entity: 'bankAccounts', label: 'Bank accounts', group: 'Payment setup', companyRequired: true },
+  { entity: 'contacts', label: 'Contacts', group: 'People', companyRequired: true },
+  { entity: 'employees', label: 'Employees', group: 'People', companyRequired: true }
+];
+
+const guidPattern = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+interface Company {
+  id: string;
+  name: string;
+}
+
+function parseCompanies(body: string): { companies: Company[]; nextLink?: string } {
+  const data: unknown = JSON.parse(body);
+  if (!data || typeof data !== 'object' || !('value' in data) || !Array.isArray(data.value)) {
+    throw new Error('The companies API returned an unexpected response.');
+  }
+  const companies = data.value.map((entry: unknown) => {
+    if (!entry || typeof entry !== 'object' ||
+        !('id' in entry) || typeof entry.id !== 'string' ||
+        !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(entry.id) ||
+        !('name' in entry) || typeof entry.name !== 'string') {
+      throw new Error('The companies API returned an invalid company.');
+    }
+    return {
+      id: entry.id,
+      name: 'displayName' in entry && typeof entry.displayName === 'string' && entry.displayName
+        ? entry.displayName : entry.name
+    };
+  });
+  const nextLink = '@odata.nextLink' in data ? data['@odata.nextLink'] : undefined;
+  if (nextLink !== undefined && typeof nextLink !== 'string') {
+    throw new Error('The companies API returned an invalid next-page link.');
+  }
+  return { companies, nextLink };
+}
+
 export default function ApiExplorerPage() {
   const styles = useStyles();
   const shared = useSharedStyles();
@@ -36,13 +110,52 @@ export default function ApiExplorerPage() {
   const [target, setTarget] = useState<TargetSelection | null>(null);
   const [method, setMethod] = useState('GET');
   const [path, setPath] = useState('');
+  const [pathType, setPathType] = useState<'relative' | 'full'>('relative');
+  const [fullUrl, setFullUrl] = useState('');
   const [company, setCompany] = useState('');
+  const [apiType, setApiType] = useState<'microsoft' | 'custom'>('microsoft');
+  const [presetId, setPresetId] = useState('companies');
+  const [parentId, setParentId] = useState('');
+  const [presetQuery, setPresetQuery] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [companyId, setCompanyId] = useState('');
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [companiesLoaded, setCompaniesLoaded] = useState(false);
+  const companyRequest = useRef(0);
   const [body, setBody] = useState('');
   const [result, setResult] = useState<CallResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [history, setHistory] = useState<ApiCallHistoryEntry[]>([]);
   const [selected, setSelected] = useState<ApiCallHistoryEntry | null>(null);
+  const preset = apiType === 'microsoft' ? apiPresets.find(p => p.entity === presetId) : undefined;
+  const isFullUrl = apiType === 'custom' && pathType === 'full';
+  let urlTarget: { tenantId: string; environment: string } | null = null;
+  if (isFullUrl) {
+    try {
+      const url = new URL(fullUrl.trim());
+      const parts = url.pathname.split('/');
+      const tenantId = decodeURIComponent(parts[2] ?? '');
+      const environment = decodeURIComponent(parts[3] ?? '');
+      if (url.protocol === 'https:' && url.hostname === 'api.businesscentral.dynamics.com' &&
+          !url.port && !url.username && !url.password && !url.hash &&
+          parts[1] === 'v2.0' && environment && ['api', 'ODataV4'].includes(parts[4]) &&
+          /^(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,})$/i.test(tenantId)) {
+        urlTarget = { tenantId, environment };
+      }
+    } catch { /* Incomplete URLs are explained by the field validation below. */ }
+  }
+  const requestPath = preset
+    ? `api/v2.0/${preset.companyRequired ? `companies(${companyId || '{companyId}'})/` : ''}${preset.parent ? `${preset.parent.entity}(${parentId.trim() || '{journalId}'})/` : ''}${preset.entity}`
+    : isFullUrl ? fullUrl : path;
+  const selectedCompany = companies.find(c => c.id === companyId);
+  const canSend = (isFullUrl ? !!urlTarget : !!target?.environment && (!!preset || !/^https?:/i.test(path.trim()))) && !!requestPath.trim() &&
+    (!preset?.companyRequired || !!selectedCompany) &&
+    (!preset?.parent || guidPattern.test(parentId.trim()));
+  const visiblePresets = apiPresets.filter(p =>
+    `${p.label} ${p.entity} ${p.group}`.toLowerCase().includes((presetQuery ?? '').toLowerCase())
+  );
+  const visibleGroups = [...new Set(visiblePresets.map(p => p.group))];
 
   const loadHistory = useCallback(async () => {
     try { setHistory(await api.get<ApiCallHistoryEntry[]>('/api/call/history')); } catch { /* non-fatal */ }
@@ -63,8 +176,61 @@ export default function ApiExplorerPage() {
     loadHistory();
   }, [loadHistory]);
 
+  useEffect(() => () => { companyRequest.current++; }, []);
+
+  const changeTarget = (next: TargetSelection | null) => {
+    companyRequest.current++;
+    setTarget(next);
+    setCompanies([]);
+    setCompanyId('');
+    setParentId('');
+    setCompany('');
+    setCompaniesLoading(false);
+    setCompaniesLoaded(false);
+    setError('');
+  };
+
+  const loadCompanies = async () => {
+    if (!target?.environment) return;
+    const requestId = ++companyRequest.current;
+    setCompaniesLoading(true);
+    setCompaniesLoaded(false);
+    setCompanyId('');
+    setParentId('');
+    setCompanies([]);
+    setError('');
+    try {
+      const loaded: Company[] = [];
+      const visited = new Set<string>();
+      let nextPath: string | undefined = 'api/v2.0/companies';
+      while (nextPath) {
+        if (visited.has(nextPath)) throw new Error('The companies API repeated a next-page link.');
+        visited.add(nextPath);
+        const response = await api.post<CallResult>('/api/call', {
+          tenantId: target.tenantId, environment: target.environment,
+          method: 'GET', path: nextPath
+        });
+        if (requestId !== companyRequest.current) return;
+        const page = parseCompanies(response.body);
+        loaded.push(...page.companies);
+        nextPath = page.nextLink;
+      }
+      setCompanies(loaded);
+      setCompaniesLoaded(true);
+    } catch (e: unknown) {
+      if (requestId === companyRequest.current) {
+        setError(`Could not load companies: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    } finally {
+      if (requestId === companyRequest.current) {
+        setCompaniesLoading(false);
+        loadHistory();
+      }
+    }
+  };
+
   const execute = async () => {
-    if (!target || !path.trim()) return;
+    if (!canSend) return;
     setError('');
     setLoading(true);
     setResult(null);
@@ -73,12 +239,12 @@ export default function ApiExplorerPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenantId: target.tenantId,
-          environment: target.environment,
-          method,
-          path: path.trim(),
-          companyName: company.trim() || undefined,
-          body: body.trim() || undefined
+          tenantId: isFullUrl ? undefined : target?.tenantId,
+          environment: isFullUrl ? undefined : target?.environment,
+          method: preset ? 'GET' : method,
+          path: requestPath.trim(),
+          companyName: preset || isFullUrl ? undefined : company.trim() || undefined,
+          body: preset ? undefined : body.trim() || undefined
         })
       });
       const json = await resp.json();
@@ -107,35 +273,170 @@ export default function ApiExplorerPage() {
       {error && <MessageBar intent="error"><MessageBarBody>{error}</MessageBarBody></MessageBar>}
 
       <Card className={shared.card}>
+        <Field label="API type">
+          <RadioGroup
+            layout="horizontal"
+            value={apiType}
+            onChange={(_e, d) => {
+              if (d.value === 'microsoft' || d.value === 'custom') {
+                setApiType(d.value);
+                setPresetQuery(null);
+              }
+            }}
+          >
+            <Radio value="microsoft" label="Microsoft" />
+            <Radio value="custom" label="Custom" />
+          </RadioGroup>
+        </Field>
+        {apiType === 'microsoft' && <Field label="Microsoft API" hint="Search by name, endpoint or area. Availability depends on your BC version and permissions. Requests use GET.">
+          <Combobox
+            value={presetQuery ?? preset?.label ?? ''}
+            selectedOptions={[presetId]}
+            placeholder="Search APIs..."
+            positioning={{ autoSize: 'width' }}
+            listbox={{ style: { maxHeight: '320px' } }}
+            onChange={e => setPresetQuery(e.target.value)}
+            onBlur={() => setPresetQuery(null)}
+            onOptionSelect={(_e, d) => {
+              if (!d.optionValue) return;
+              setPresetId(d.optionValue);
+              setParentId('');
+              setPresetQuery(null);
+            }}
+          >
+            {visibleGroups.map(group => (
+              <OptionGroup key={group} label={group}>
+                {visiblePresets.filter(p => p.group === group).map(p => (
+                  <Option key={p.entity} value={p.entity}>{p.label}</Option>
+                ))}
+              </OptionGroup>
+            ))}
+            {visiblePresets.length === 0 && <Option disabled>No matching APIs</Option>}
+          </Combobox>
+        </Field>}
+        {apiType === 'custom' && (
+          <Field label="Request type">
+            <RadioGroup
+              layout="horizontal"
+              value={pathType}
+              onChange={(_e, d) => {
+                if (d.value === 'relative' || d.value === 'full') setPathType(d.value);
+              }}
+            >
+              <Radio value="relative" label="Relative path" />
+              <Radio value="full" label="Full URL" />
+            </RadioGroup>
+          </Field>
+        )}
         <div className={styles.row}>
-          <TargetPicker settings={settings} value={target} onChange={setTarget} />
-          <Field label="Method">
+          {!isFullUrl && <TargetPicker settings={settings} value={target} onChange={changeTarget} />}
+          {apiType === 'custom' && <Field label="Method">
             <Dropdown
               style={{ minWidth: '110px' }}
               value={method}
+              selectedOptions={[method]}
               onOptionSelect={(_e, d) => setMethod(d.optionValue ?? 'GET')}
             >
               {['GET', 'POST', 'PATCH', 'DELETE'].map(m => <Option key={m} value={m}>{m}</Option>)}
             </Dropdown>
-          </Field>
-          <Field label="Company name (optional)">
-            <Input
-              placeholder="e.g. CRONUS International Ltd."
-              value={company}
-              onChange={(_e, d) => setCompany(d.value)}
-              style={{ minWidth: '220px' }}
-            />
-          </Field>
+          </Field>}
         </div>
-        <Field label="Path (relative like 'items', full 'api/v2.0/items', or a custom API path)" style={{ marginTop: '12px' }}>
+        {preset?.companyRequired && (
+          <>
+            <div className={styles.row}>
+              <Field label="Company" required>
+                <Dropdown
+                  placeholder={companiesLoading ? 'Loading companies...' : 'Select company'}
+                  value={selectedCompany?.name ?? ''}
+                  selectedOptions={companyId ? [companyId] : []}
+                  disabled={companiesLoading || companies.length === 0}
+                  onOptionSelect={(_e, d) => {
+                    setCompanyId(d.optionValue ?? '');
+                    setParentId('');
+                  }}
+                >
+                  {companies.map(c => <Option key={c.id} value={c.id}>{c.name}</Option>)}
+                </Dropdown>
+              </Field>
+              <Button disabled={!target?.environment || companiesLoading} onClick={loadCompanies}>
+                {companiesLoading ? 'Loading companies...' : 'Load companies'}
+              </Button>
+            </div>
+            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+              Load companies, then choose which company's data to request.
+            </Text>
+            {companiesLoaded && companies.length === 0 && (
+              <Text>No companies found in this environment.</Text>
+            )}
+            {preset?.parent && (
+              <Field
+                label={`${preset.parent.label} ID`}
+                required
+                hint="Copy the journal's id from a Journals response for this company."
+                validationState={parentId.trim() && !guidPattern.test(parentId.trim()) ? 'error' : 'none'}
+                validationMessage={parentId.trim() && !guidPattern.test(parentId.trim())
+                  ? 'Enter a journal GUID, not its name or code.' : undefined}
+              >
+                <Input
+                  value={parentId}
+                  placeholder="00000000-0000-0000-0000-000000000000"
+                  onChange={(_e, d) => setParentId(d.value)}
+                />
+              </Field>
+            )}
+          </>
+        )}
+        <Field
+          label={apiType === 'microsoft' ? 'Request path' : isFullUrl ? 'Full URL' : 'Path'}
+          hint={apiType === 'microsoft'
+            ? 'Generated from your API and company selection. Use Custom to enter your own request.'
+            : isFullUrl ? 'Include the tenant ID and environment. These are used for authentication and request history.'
+            : 'Use a relative path such as api/v2.0/companies. For an https:// address, select Full URL.'}
+          validationState={isFullUrl && fullUrl.trim() && !urlTarget ? 'error' : 'none'}
+          validationMessage={isFullUrl && fullUrl.trim() && !urlTarget
+            ? 'Use https://api.businesscentral.dynamics.com/v2.0/{tenantId}/{environment}/api/... or /ODataV4/...'
+            : undefined}
+          style={{ marginTop: '12px' }}
+        >
           <Input
-            placeholder="api/v2.0/items or api/automation/v2.0/companies"
-            value={path}
-            onChange={(_e, d) => setPath(d.value)}
-            style={{ width: '100%' }}
+            placeholder={isFullUrl
+              ? 'https://api.businesscentral.dynamics.com/v2.0/TENANT_ID/ENVIRONMENT/api/v2.0/companies'
+              : 'api/v2.0/companies'}
+            value={requestPath}
+            readOnly={apiType === 'microsoft'}
+            onChange={(_e, d) => isFullUrl ? setFullUrl(d.value) : setPath(d.value)}
+            style={{ width: '100%', fontFamily: tokens.fontFamilyMonospace }}
           />
         </Field>
-        {(method === 'POST' || method === 'PATCH') && (
+        {isFullUrl && urlTarget && (
+          <Text size={200}>Tenant: {urlTarget.tenantId} | Environment: {urlTarget.environment}</Text>
+        )}
+        {apiType === 'custom' && !isFullUrl && (
+          <details>
+            <summary>{company.trim() ? `Additional options (company: ${company.trim()})` : 'Additional options'}</summary>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', overflowWrap: 'anywhere' }}>
+              <Field
+                label="Company ID or name (optional)"
+                hint="Adds ?company=. Use a GUID for APIs or a quoted name for OData. Leave blank if the path includes the company."
+              >
+                <Input
+                  placeholder="Company GUID or 'CRONUS'"
+                  value={company}
+                  onChange={(_e, d) => setCompany(d.value)}
+                  style={{ width: '100%', maxWidth: '420px' }}
+                />
+              </Field>
+              <Text weight="semibold">API examples</Text>
+              <Text size={200}>Replace COMPANY_ID with an actual id from <code>api/v2.0/companies</code>.</Text>
+              <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                <li>Path: <code>api/v2.0/items</code> — Company: <code>COMPANY_ID</code></li>
+                <li>Path: <code>api/v2.0/customers</code> — Company: <code>COMPANY_ID</code></li>
+                <li>Path: <code>api/v2.0/companies(COMPANY_ID)/items</code> — Company: leave blank</li>
+              </ul>
+            </div>
+          </details>
+        )}
+        {apiType === 'custom' && (method === 'POST' || method === 'PATCH') && (
           <Field label="Request body (JSON)" style={{ marginTop: '12px' }}>
             <Textarea
               rows={6}
@@ -149,7 +450,7 @@ export default function ApiExplorerPage() {
           <Button
             appearance="primary"
             icon={loading ? <Spinner size="tiny" /> : <Play24Regular />}
-            disabled={!target || !path.trim() || loading}
+            disabled={!canSend || loading || companiesLoading}
             onClick={execute}
           >
             Send request

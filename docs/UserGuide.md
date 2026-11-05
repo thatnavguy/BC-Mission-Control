@@ -350,13 +350,73 @@ without opening Postman.
 ![API Explorer page](screenshots/api-explorer.png)
 
 1. Pick a **Tenant** and **Environment**.
-2. Optionally enter a **Company name**.
-3. Choose the **Method** (GET, POST, ...).
-4. Enter the **Path**:
-   - Short form like `items` calls the standard v2.0 API.
-   - Full form like `api/v2.0/items` or a custom API path hangs off the
-     service root.
-5. Click **Send request**. The formatted response appears below.
+2. Choose **Microsoft** under **API type**, then select a **Microsoft API**.
+   Search by name, endpoint (for example, `purchaseInvoices`), or area.
+   These use Microsoft's standard v2.0 API.
+3. For any preset except Companies, click **Load companies**, then select a
+   **Company**. Changing the tenant or environment clears this selection.
+4. Click **Send request**. The formatted response appears below.
+
+The read-only **Request path** shows the path for your selection.
+Selecting an API prepares a GET request. It does not send it or load companies
+automatically. Available APIs depend on the environment's Business Central version
+and your permissions.
+
+The selector groups 31 APIs by area:
+
+| Area | APIs |
+|---|---|
+| Company setup | Companies, Company Information, Currencies, Countries/Regions |
+| Finance | Accounts, General Ledger Entries, Journals, Journal Lines, Dimensions, Dimension Values |
+| Sales | Customers, Sales Invoices, Sales Orders, Sales Quotes, Sales Credit Memos, Sales Shipments |
+| Purchasing | Vendors, Purchase Orders, Purchase Invoices, Purchase Credit Memos, Purchase Receipts |
+| Inventory | Items, Locations, Item Categories, Units of Measure, Item Ledger Entries |
+| Payment setup | Payment Terms, Payment Methods, Bank Accounts |
+| People | Contacts, Employees |
+
+**Journal Lines** also needs a **Journal ID**. First request Journals for the
+company and copy the journal's `id`. The generated path includes that journal.
+
+**Change Log Entries** is not in this Microsoft preset catalog or the supplied
+BC29 API list. If an extension exposes it as a custom API, use Custom mode with
+that endpoint. A published OData service can also be called using its full URL.
+
+For other APIs, choose **Custom** under **API type**, choose the **Method**, and
+choose a **Request type**:
+
+- **Relative path:** choose Tenant and Environment, then enter the Path.
+- **Full URL:** paste an HTTPS Business Central URL containing
+  `/v2.0/{tenantId}/{environment}/api/...` or `/ODataV4/...`. Tenant and
+  Environment selectors are hidden. The URL's tenant is used for authentication.
+  Use a tenant GUID or domain name; URLs that omit the tenant are not supported.
+  Include any company ID or query parameter in the URL itself. The separate
+  company field is hidden and its saved value is not applied.
+
+Each mode keeps its own request fields when you switch.
+A path such as `api/v2.0/companies(<companyId>)/items` requests items from a
+specific company. Short paths such as `companies` use the standard v2.0 API.
+Custom API paths start with `api/<publisher>/<group>/<version>/`.
+For Relative path only, under **Additional options**, the optional **Company ID or name** field adds a
+`company` query parameter. The section is collapsed by default; its heading shows
+the company value when one is set, even while collapsed.
+Use a company GUID (its unique ID) for API endpoints, or a quoted company name
+for published OData web services. The app does not convert names to IDs.
+Leave this field blank if the path already specifies the company.
+
+**Additional options** also contains short API examples:
+
+- **API using a company ID:** set Path to `api/v2.0/items` and Company ID or name
+  to `00aa00aa-bb11-cc22-dd33-44ee44ee44ee`. Replace this example GUID with an
+  actual `id` from `api/v2.0/companies`.
+- **Company in the path:** use
+  `api/v2.0/companies(00aa00aa-bb11-cc22-dd33-44ee44ee44ee)/items`, replacing the
+  example GUID. Leave Company ID or name blank.
+- **OData using a name:** use the full URL
+  `https://api.businesscentral.dynamics.com/v2.0/TENANT_ID/ENVIRONMENT/ODataV4/Customers?company='CRONUS'`
+  in Full URL mode.
+  Replace TENANT_ID and ENVIRONMENT. Customers must be a published service.
+  Use the exact company name. Double apostrophes inside it: `'O''Brien'`.
+  URL-encode spaces and other special characters in the company name.
 
 Calls run as your signed-in user, so you only see data your account can see.
 

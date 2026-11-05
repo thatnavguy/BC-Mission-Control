@@ -440,9 +440,10 @@ router.get('/compare', asyncWrap(async (req, res) => {
 
 router.post('/call', asyncWrap(async (req, res) => {
   const s = loadSettings();
-  const { tenantId, environment, method, path: apiPath, companyName, body } = req.body ?? {};
-  if (!tenantId || !environment || !apiPath) {
-    res.status(400).json({ error: 'tenantId, environment and path are required' });
+  const { method, path: apiPath, companyName, body } = req.body ?? {};
+  let { tenantId, environment } = req.body ?? {};
+  if (!apiPath) {
+    res.status(400).json({ error: 'path is required' });
     return;
   }
   const m = String(method || 'GET').toUpperCase();
@@ -455,12 +456,41 @@ router.post('/call', asyncWrap(async (req, res) => {
   let url: string;
   const p = String(apiPath).trim();
   if (/^https?:\/\//i.test(p)) {
-    if (!p.toLowerCase().startsWith('https://api.businesscentral.dynamics.com/')) {
-      res.status(400).json({ error: 'Only api.businesscentral.dynamics.com URLs are allowed' });
+    let parsed: URL;
+    try {
+      parsed = new URL(p);
+    } catch {
+      res.status(400).json({ error: 'Enter a valid Business Central URL' });
       return;
     }
-    url = p;
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'api.businesscentral.dynamics.com' ||
+        parsed.port || parsed.username || parsed.password || parsed.hash) {
+      res.status(400).json({ error: 'Only HTTPS api.businesscentral.dynamics.com URLs without credentials, custom ports or fragments are allowed' });
+      return;
+    }
+    const parts = parsed.pathname.split('/');
+    if (parts[1] !== 'v2.0' || !parts[2] || !parts[3] ||
+        !['api', 'ODataV4'].includes(parts[4])) {
+      res.status(400).json({ error: 'Full URL must include /v2.0/{tenantId}/{environment}/api/... or /ODataV4/...' });
+      return;
+    }
+    try {
+      tenantId = decodeURIComponent(parts[2]);
+      environment = decodeURIComponent(parts[3]);
+    } catch {
+      res.status(400).json({ error: 'Full URL contains invalid tenant or environment encoding' });
+      return;
+    }
+    if (!/^(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,})$/i.test(tenantId)) {
+      res.status(400).json({ error: 'Full URL tenant must be a tenant GUID or domain name' });
+      return;
+    }
+    url = parsed.href;
   } else {
+    if (!tenantId || !environment) {
+      res.status(400).json({ error: 'tenantId and environment are required for relative paths' });
+      return;
+    }
     const root = `https://api.businesscentral.dynamics.com/v2.0/${encodeURIComponent(String(tenantId))}/${encodeURIComponent(String(environment))}`;
     const rel = p.replace(/^\/+/, '');
     url = rel.startsWith('api/') ? `${root}/${rel}` : `${root}/api/v2.0/${rel}`;
@@ -482,7 +512,8 @@ router.post('/call', asyncWrap(async (req, res) => {
       body: m === 'GET' || m === 'DELETE' || body === undefined || body === null || body === ''
         ? undefined
         : typeof body === 'string' ? body : JSON.stringify(body),
-      signal: AbortSignal.timeout(2 * 60 * 1000)
+      signal: AbortSignal.timeout(2 * 60 * 1000),
+      redirect: 'error'
     });
     const text = await resp.text();
     recordCall({
