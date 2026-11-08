@@ -5,6 +5,8 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-11-09
+
 ### Fixed
 
 - Scheduling a BC update for the current day no longer fails with

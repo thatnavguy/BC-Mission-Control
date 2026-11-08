@@ -1,6 +1,6 @@
 {
   "name": "bc-mission-control",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "scripts": {
     "setup": "npm --prefix server install && npm --prefix web install",
