@@ -151,26 +151,36 @@ export default function UpdateManagementPage() {
     try {
       const currentSchedule = scheduleTarget.scheduleDetails?.selectedDateTime;
       let selectedDateTime: string | undefined;
+      let movedToNextWindow = false;
       if (scheduleDate) {
-        if (currentSchedule?.startsWith(`${scheduleDate}T`)) {
-          selectedDateTime = currentSchedule;
-        } else {
-          // Combine the picked date with the update window start (UTC). A bare
-          // date becomes midnight UTC, which is often already in the past and
-          // rejected by the Admin Center API.
-          const startUtc = data?.window?.preferredStartTimeUtc;
-          const startMs = startUtc ? new Date(startUtc).getTime() : NaN;
-          const timePart = !isNaN(startMs)
-            ? new Date(startMs).toISOString().slice(11, 19)
-            : '12:00:00';
-          const combined = new Date(`${scheduleDate}T${timePart}Z`);
-          if (combined.getTime() <= Date.now()) {
-            setSaving(false);
-            setError('The selected date has already passed for this environment\'s update window. Pick a later date.');
-            return;
-          }
-          selectedDateTime = combined.toISOString();
+        // The Admin Center API rejects datetimes in the past, so combine the
+        // picked date with the update window start time (a bare date would be
+        // midnight UTC, often already past). If that occurrence has already
+        // started, roll forward to the next daily window instead of failing.
+        const startUtc = data?.window?.preferredStartTimeUtc;
+        const startMs = startUtc ? new Date(startUtc).getTime() : NaN;
+        const timePart = !isNaN(startMs)
+          ? new Date(startMs).toISOString().slice(11, 19)
+          : '12:00:00';
+        const preserved = currentSchedule?.startsWith(`${scheduleDate}T`)
+          ? new Date(currentSchedule).getTime()
+          : NaN;
+        let ms = !isNaN(preserved) ? preserved : new Date(`${scheduleDate}T${timePart}Z`).getTime();
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (ms <= Date.now() && scheduleDate < todayStr) {
+          setSaving(false);
+          setError('The selected date is in the past. Pick today or a later date.');
+          return;
         }
+        // Keep a 1-minute margin so the value is still in the future when the
+        // API processes it; the update window is daily, so +24h lands on the
+        // next occurrence.
+        while (ms <= Date.now() + 60_000) {
+          ms += 24 * 60 * 60 * 1000;
+          movedToNextWindow = true;
+        }
+        selectedDateTime = new Date(ms).toISOString();
       }
       await api.post('/api/updates/select', {
         tenantId,
@@ -181,9 +191,12 @@ export default function UpdateManagementPage() {
       });
       const wasSelected = scheduleTarget.selected;
       setScheduleTarget(null);
-      setNotice(wasSelected
+      const movedNote = movedToNextWindow && selectedDateTime
+        ? ` That window had already started, so it was moved to the next one (${selectedDateTime.slice(0, 10)}).`
+        : '';
+      setNotice((wasSelected
         ? `Schedule for ${scheduleTarget.targetVersion} updated.`
-        : `Update to ${scheduleTarget.targetVersion} selected.`);
+        : `Update to ${scheduleTarget.targetVersion} selected.`) + movedNote);
       await refresh();
     } catch (e: any) {
       setError(e.message);

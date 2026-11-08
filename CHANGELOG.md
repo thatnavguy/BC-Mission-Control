@@ -5,6 +5,14 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Scheduling a BC update for the current day no longer fails with
+  "selectedDateTime is in the past" when the update window has already
+  started. The schedule now rolls forward to the next update window (with a
+  one-minute safety margin) and tells you when that happens. Dates before
+  today are still blocked with a clear message.
+
 ## [1.5.1] - 2026-11-06
 
 ### Fixed
