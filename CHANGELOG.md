@@ -5,6 +5,13 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- "Ignore the update window" no longer rolls a same-day schedule to the next
+  update window. Since the window doesn't apply, picking today's date now
+  schedules the update to run as soon as possible, with a note saying so.
+  Rolling to the next window still applies when the window is respected.
+
 ## [1.5.2] - 2026-11-09
 
 ### Fixed

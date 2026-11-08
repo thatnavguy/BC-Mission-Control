@@ -151,12 +151,11 @@ export default function UpdateManagementPage() {
     try {
       const currentSchedule = scheduleTarget.scheduleDetails?.selectedDateTime;
       let selectedDateTime: string | undefined;
-      let movedToNextWindow = false;
+      let adjustedNote = '';
       if (scheduleDate) {
         // The Admin Center API rejects datetimes in the past, so combine the
         // picked date with the update window start time (a bare date would be
-        // midnight UTC, often already past). If that occurrence has already
-        // started, roll forward to the next daily window instead of failing.
+        // midnight UTC, often already past).
         const startUtc = data?.window?.preferredStartTimeUtc;
         const startMs = startUtc ? new Date(startUtc).getTime() : NaN;
         const timePart = !isNaN(startMs)
@@ -173,12 +172,23 @@ export default function UpdateManagementPage() {
           setError('The selected date is in the past. Pick today or a later date.');
           return;
         }
-        // Keep a 1-minute margin so the value is still in the future when the
-        // API processes it; the update window is daily, so +24h lands on the
-        // next occurrence.
-        while (ms <= Date.now() + 60_000) {
-          ms += 24 * 60 * 60 * 1000;
-          movedToNextWindow = true;
+        if (ignoreWindow && scheduleDate === todayStr) {
+          // The window doesn't apply, so "today" means as soon as possible.
+          // Keep a 5-minute margin so the value is still in the future when
+          // the API processes it.
+          ms = Date.now() + 5 * 60_000;
+          adjustedNote = ' The update is scheduled to run as soon as possible.';
+        } else if (ms <= Date.now() + 60_000) {
+          if (ignoreWindow) {
+            ms = Date.now() + 5 * 60_000;
+            adjustedNote = ' Today\'s time had already passed, so the update is scheduled to run as soon as possible.';
+          } else {
+            // The update window is daily, so +24h lands on the next occurrence.
+            while (ms <= Date.now() + 60_000) {
+              ms += 24 * 60 * 60 * 1000;
+            }
+            adjustedNote = ` That window had already started, so it was moved to the next one (${new Date(ms).toISOString().slice(0, 10)}).`;
+          }
         }
         selectedDateTime = new Date(ms).toISOString();
       }
@@ -191,12 +201,9 @@ export default function UpdateManagementPage() {
       });
       const wasSelected = scheduleTarget.selected;
       setScheduleTarget(null);
-      const movedNote = movedToNextWindow && selectedDateTime
-        ? ` That window had already started, so it was moved to the next one (${selectedDateTime.slice(0, 10)}).`
-        : '';
       setNotice((wasSelected
         ? `Schedule for ${scheduleTarget.targetVersion} updated.`
-        : `Update to ${scheduleTarget.targetVersion} selected.`) + movedNote);
+        : `Update to ${scheduleTarget.targetVersion} selected.`) + adjustedNote);
       await refresh();
     } catch (e: any) {
       setError(e.message);
